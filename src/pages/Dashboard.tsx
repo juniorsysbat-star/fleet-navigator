@@ -4,9 +4,12 @@ import { VehicleMap } from '@/components/VehicleMap';
 import { VehicleSidebar } from '@/components/VehicleSidebar';
 import { VehicleDetailPanel } from '@/components/VehicleDetailPanel';
 import { GeofencePanel } from '@/components/GeofencePanel';
+import { MissionPlannerModal } from '@/components/MissionPlannerModal';
+import { MissionTracker } from '@/components/MissionTracker';
 import { AlertCircle, Database } from 'lucide-react';
 import { generateMockTrail, MOCK_TRAILS } from '@/data/mockVehicles';
 import { MOCK_GEOFENCES, Geofence } from '@/data/mockGeofences';
+import { Mission } from '@/types/mission';
 
 const Dashboard = () => {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
@@ -15,6 +18,8 @@ const Dashboard = () => {
   const [geofences, setGeofences] = useState<Geofence[]>(MOCK_GEOFENCES);
   const [isDrawingGeofence, setIsDrawingGeofence] = useState(false);
   const [selectedGeofenceId, setSelectedGeofenceId] = useState<string | null>(null);
+  const [isMissionPlannerOpen, setIsMissionPlannerOpen] = useState(false);
+  const [activeMission, setActiveMission] = useState<Mission | null>(null);
   
   const { vehicles, isLoading, error, lastUpdate, movingCount, stoppedCount, isUsingMockData, refetch } = useVehicles();
   
@@ -87,6 +92,23 @@ const Dashboard = () => {
     ));
   };
 
+  const handleMissionCreated = (mission: Mission) => {
+    setActiveMission(mission);
+    setSelectedVehicleId(mission.vehicleId);
+    console.log('🚀 Nova missão criada:', mission.name);
+  };
+
+  const handleCancelMission = () => {
+    if (activeMission) {
+      console.log('❌ Missão cancelada:', activeMission.name);
+      setActiveMission(null);
+    }
+  };
+
+  const missionVehicle = activeMission 
+    ? vehicles.find(v => v.device_id === activeMission.vehicleId) 
+    : undefined;
+
   return (
     <div className="h-full w-full flex overflow-hidden bg-background">
       {/* Sidebar */}
@@ -142,6 +164,7 @@ const Dashboard = () => {
           isDrawingGeofence={isDrawingGeofence}
           onGeofenceDrawn={handleGeofenceDrawn}
           selectedGeofenceId={selectedGeofenceId}
+          activeMission={activeMission}
         />
 
         {/* Geofence Panel */}
@@ -156,6 +179,16 @@ const Dashboard = () => {
           onSelectGeofence={setSelectedGeofenceId}
         />
 
+        {/* Mission Tracker */}
+        {activeMission && (
+          <MissionTracker
+            mission={activeMission}
+            vehicle={missionVehicle}
+            onClose={() => setActiveMission(null)}
+            onCancelMission={handleCancelMission}
+          />
+        )}
+
         {/* Status Bar */}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] px-4 py-2 bg-card/90 backdrop-blur-sm border border-border rounded-full flex items-center gap-4 text-xs font-medium">
           <div className="flex items-center gap-2">
@@ -166,6 +199,14 @@ const Dashboard = () => {
           <span className="text-foreground font-display tracking-wide">
             {vehicles.length} VEÍCULOS
           </span>
+          {activeMission && (
+            <>
+              <div className="w-px h-4 bg-border" />
+              <span className="text-accent font-display tracking-wide">
+                MISSÃO ATIVA
+              </span>
+            </>
+          )}
           <div className="w-px h-4 bg-border" />
           <span className="text-muted-foreground font-mono text-[10px]">
             10s
@@ -180,8 +221,17 @@ const Dashboard = () => {
           onClose={handleClosePanel}
           onShowTrail={handleShowTrail}
           isTrailVisible={showTrail}
+          onOpenMissionPlanner={() => setIsMissionPlannerOpen(true)}
         />
       )}
+
+      {/* Mission Planner Modal */}
+      <MissionPlannerModal
+        isOpen={isMissionPlannerOpen}
+        onClose={() => setIsMissionPlannerOpen(false)}
+        vehicles={vehicles}
+        onMissionCreated={handleMissionCreated}
+      />
     </div>
   );
 };

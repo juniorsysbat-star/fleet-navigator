@@ -9,7 +9,8 @@ import {
   Route, 
   Lock,
   Car,
-  Navigation
+  Navigation,
+  Rocket
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -21,13 +22,15 @@ interface VehicleDetailPanelProps {
   onClose: () => void;
   onShowTrail: (vehicleId: string) => void;
   isTrailVisible: boolean;
+  onOpenMissionPlanner: () => void;
 }
 
 export function VehicleDetailPanel({ 
   vehicle, 
   onClose, 
   onShowTrail,
-  isTrailVisible 
+  isTrailVisible,
+  onOpenMissionPlanner
 }: VehicleDetailPanelProps) {
   if (!vehicle) return null;
 
@@ -229,6 +232,16 @@ export function VehicleDetailPanel({
         >
           <Route className="w-4 h-4" />
           {isTrailVisible ? 'Ocultar Trajeto' : 'Ver Trajeto'}
+        </Button>
+
+        {/* Mission Planner Button */}
+        <Button
+          onClick={onOpenMissionPlanner}
+          variant="outline"
+          className="w-full gap-2 font-semibold mt-3 border-accent/50 text-accent hover:bg-accent/10"
+        >
+          <Rocket className="w-4 h-4" />
+          Nova Missão
         </Button>
       </div>
 

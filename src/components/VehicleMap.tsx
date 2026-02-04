@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import { VehicleWithStatus } from '@/types/vehicle';
 import { Geofence } from '@/data/mockGeofences';
+import { Mission } from '@/types/mission';
 import 'leaflet/dist/leaflet.css';
 
 // Fix default marker icons
@@ -90,6 +91,7 @@ interface VehicleMapProps {
   isDrawingGeofence?: boolean;
   onGeofenceDrawn?: (coordinates: { lat: number; lng: number }[]) => void;
   selectedGeofenceId?: string | null;
+  activeMission?: Mission | null;
 }
 
 export function VehicleMap({ 
@@ -100,7 +102,8 @@ export function VehicleMap({
   geofences = [],
   isDrawingGeofence = false,
   onGeofenceDrawn,
-  selectedGeofenceId
+  selectedGeofenceId,
+  activeMission
 }: VehicleMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -111,6 +114,9 @@ export function VehicleMap({
   const drawingPointsRef = useRef<{ lat: number; lng: number }[]>([]);
   const drawingLayerRef = useRef<L.Polygon | null>(null);
   const drawingMarkersRef = useRef<L.Marker[]>([]);
+  const missionRouteRef = useRef<L.Polyline | null>(null);
+  const missionCorridorRef = useRef<L.Polyline | null>(null);
+  const missionMarkersRef = useRef<L.Marker[]>([]);
   const [isMapReady, setIsMapReady] = useState(false);
 
   const formatDate = (dateString: string) => {
@@ -475,6 +481,119 @@ export function VehicleMap({
       }
     });
   }, [geofences, selectedGeofenceId, isMapReady]);
+
+  // Handle mission route display
+  useEffect(() => {
+    if (!mapRef.current || !isMapReady) return;
+
+    const map = mapRef.current;
+
+    // Clear existing mission layers
+    if (missionRouteRef.current) {
+      missionRouteRef.current.remove();
+      missionRouteRef.current = null;
+    }
+    if (missionCorridorRef.current) {
+      missionCorridorRef.current.remove();
+      missionCorridorRef.current = null;
+    }
+    missionMarkersRef.current.forEach(m => m.remove());
+    missionMarkersRef.current = [];
+
+    if (!activeMission || activeMission.routeCoordinates.length < 2) return;
+
+    const latLngs: L.LatLngExpression[] = activeMission.routeCoordinates.map(
+      p => [p.lat, p.lng]
+    );
+
+    // Draw corridor (glow effect)
+    const corridor = L.polyline(latLngs, {
+      color: '#00ffff',
+      weight: 24,
+      opacity: 0.15,
+      lineCap: 'round',
+      lineJoin: 'round',
+    }).addTo(map);
+    missionCorridorRef.current = corridor;
+
+    // Draw main route
+    const route = L.polyline(latLngs, {
+      color: '#00ffff',
+      weight: 4,
+      opacity: 0.9,
+      lineCap: 'round',
+      lineJoin: 'round',
+    }).addTo(map);
+    missionRouteRef.current = route;
+
+    // Draw animated dashes on top
+    L.polyline(latLngs, {
+      color: '#ffffff',
+      weight: 2,
+      opacity: 0.5,
+      dashArray: '10, 20',
+      lineCap: 'round',
+    }).addTo(map);
+
+    // Origin marker
+    const originMarker = L.marker([activeMission.origin.lat, activeMission.origin.lng], {
+      icon: L.divIcon({
+        className: 'mission-marker',
+        html: `
+          <div style="
+            width: 24px; 
+            height: 24px; 
+            background: #00ff88; 
+            border: 3px solid white; 
+            border-radius: 50%; 
+            box-shadow: 0 0 15px #00ff88;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          ">
+            <div style="width: 8px; height: 8px; background: white; border-radius: 50%;"></div>
+          </div>
+        `,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      }),
+    }).addTo(map);
+    originMarker.bindPopup(`<strong>Origem</strong><br/>${activeMission.origin.name.split(',').slice(0, 2).join(',')}`);
+
+    // Destination marker
+    const destMarker = L.marker([activeMission.destination.lat, activeMission.destination.lng], {
+      icon: L.divIcon({
+        className: 'mission-marker',
+        html: `
+          <div style="
+            width: 28px; 
+            height: 28px; 
+            background: #ff4444; 
+            border: 3px solid white; 
+            border-radius: 50%; 
+            box-shadow: 0 0 15px #ff4444;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          ">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+          </div>
+        `,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+      }),
+    }).addTo(map);
+    destMarker.bindPopup(`<strong>Destino</strong><br/>${activeMission.destination.name.split(',').slice(0, 2).join(',')}`);
+
+    missionMarkersRef.current = [originMarker, destMarker];
+
+    // Fit bounds to show entire route
+    map.fitBounds(route.getBounds(), { padding: [80, 80] });
+
+  }, [activeMission, isMapReady]);
 
   return (
     <div 
