@@ -351,6 +351,52 @@ export function VehicleMap({
     }
   }, [isDrawingGeofence, isMapReady, onGeofenceDrawn, clearDrawingState]);
 
+  // Ref to track if initial centering has been done
+  const initialCenterDoneRef = useRef(false);
+  
+  // Animation refs for smooth marker movement
+  const animationFramesRef = useRef<Map<string, number>>(new Map());
+
+  // Smooth marker animation function
+  const animateMarkerTo = useCallback((marker: L.Marker, targetLat: number, targetLng: number, duration: number = 1000) => {
+    const vehicleId = Array.from(markersRef.current.entries()).find(([_, m]) => m === marker)?.[0];
+    if (!vehicleId) return;
+
+    // Cancel any existing animation for this marker
+    const existingFrame = animationFramesRef.current.get(vehicleId);
+    if (existingFrame) {
+      cancelAnimationFrame(existingFrame);
+    }
+
+    const startLatLng = marker.getLatLng();
+    const startLat = startLatLng.lat;
+    const startLng = startLatLng.lng;
+    const startTime = performance.now();
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Easing function (ease-out cubic)
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      
+      const currentLat = startLat + (targetLat - startLat) * easeProgress;
+      const currentLng = startLng + (targetLng - startLng) * easeProgress;
+      
+      marker.setLatLng([currentLat, currentLng]);
+      
+      if (progress < 1) {
+        const frameId = requestAnimationFrame(animate);
+        animationFramesRef.current.set(vehicleId, frameId);
+      } else {
+        animationFramesRef.current.delete(vehicleId);
+      }
+    };
+
+    const frameId = requestAnimationFrame(animate);
+    animationFramesRef.current.set(vehicleId, frameId);
+  }, []);
+
   // Update markers when vehicles change - with mission speed violation detection
   useEffect(() => {
     if (!mapRef.current || !isMapReady) return;
@@ -362,6 +408,12 @@ export function VehicleMap({
     // Remove markers for vehicles that no longer exist
     existingMarkers.forEach((marker, id) => {
       if (!currentVehicleIds.has(id)) {
+        // Cancel any pending animation
+        const frameId = animationFramesRef.current.get(id);
+        if (frameId) {
+          cancelAnimationFrame(frameId);
+          animationFramesRef.current.delete(id);
+        }
         marker.remove();
         existingMarkers.delete(id);
       }
@@ -370,7 +422,6 @@ export function VehicleMap({
     // Add or update markers
     vehicles.forEach((vehicle) => {
       const existingMarker = existingMarkers.get(vehicle.device_id);
-      const position: L.LatLngExpression = [vehicle.latitude, vehicle.longitude];
       
       // Check if this vehicle is speeding (if in active mission)
       let markerStatus: 'moving' | 'idle' | 'offline' | 'unknown' | 'speeding' = getVehicleMarkerStatus(vehicle);
@@ -390,11 +441,13 @@ export function VehicleMap({
       }
 
       if (existingMarker) {
-        existingMarker.setLatLng(position);
+        // Animate to new position instead of teleporting
+        animateMarkerTo(existingMarker, vehicle.latitude, vehicle.longitude, 800);
         existingMarker.setIcon(createCustomIcon(markerStatus));
         existingMarker.getPopup()?.setContent(createPopupContent(vehicle));
       } else {
-        const marker = L.marker(position, {
+        // Create new marker
+        const marker = L.marker([vehicle.latitude, vehicle.longitude], {
           icon: createCustomIcon(markerStatus),
         });
 
@@ -411,12 +464,21 @@ export function VehicleMap({
       }
     });
 
-    // Center on first vehicle if needed
-    if (vehicles.length > 0 && existingMarkers.size === vehicles.length) {
-      const firstVehicle = vehicles[0];
-      map.setView([firstVehicle.latitude, firstVehicle.longitude], 13, { animate: false });
+    // Center on vehicles ONLY on first load
+    if (!initialCenterDoneRef.current && vehicles.length > 0) {
+      const bounds = L.latLngBounds(vehicles.map(v => [v.latitude, v.longitude] as L.LatLngTuple));
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
+      initialCenterDoneRef.current = true;
     }
-  }, [vehicles, isMapReady, onVehicleSelect, activeMission]);
+  }, [vehicles, isMapReady, onVehicleSelect, activeMission, animateMarkerTo]);
+
+  // Cleanup animation frames on unmount
+  useEffect(() => {
+    return () => {
+      animationFramesRef.current.forEach(frameId => cancelAnimationFrame(frameId));
+      animationFramesRef.current.clear();
+    };
+  }, []);
 
   // Handle selected vehicle change
   useEffect(() => {
