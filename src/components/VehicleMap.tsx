@@ -1,9 +1,16 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { VehicleWithStatus } from '@/types/vehicle';
 import { Car, MapPin, Gauge, Clock, Navigation } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
+
+// Fix default marker icons
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
 
 // Custom marker icons
 const createCustomIcon = (isMoving: boolean) => {
@@ -61,24 +68,6 @@ const createCustomIcon = (isMoving: boolean) => {
   });
 };
 
-interface MapCenterProps {
-  center: [number, number] | null;
-}
-
-function MapCenter({ center }: MapCenterProps) {
-  const map = useMap();
-  const prevCenter = useRef<[number, number] | null>(null);
-
-  useEffect(() => {
-    if (center && (prevCenter.current?.[0] !== center[0] || prevCenter.current?.[1] !== center[1])) {
-      map.flyTo(center, 16, { duration: 1 });
-      prevCenter.current = center;
-    }
-  }, [center, map]);
-
-  return null;
-}
-
 interface VehicleMapProps {
   vehicles: VehicleWithStatus[];
   selectedVehicleId: string | null;
@@ -86,15 +75,10 @@ interface VehicleMapProps {
 }
 
 export function VehicleMap({ vehicles, selectedVehicleId, onVehicleSelect }: VehicleMapProps) {
-  // Calculate center based on vehicles or default to Brazil
-  const defaultCenter: [number, number] = vehicles.length > 0
-    ? [vehicles[0].latitude, vehicles[0].longitude]
-    : [-15.7801, -47.9292];
-
-  const selectedVehicle = vehicles.find((v) => v.device_id === selectedVehicleId);
-  const centerOnVehicle: [number, number] | null = selectedVehicle
-    ? [selectedVehicle.latitude, selectedVehicle.longitude]
-    : null;
+  const mapRef = useRef<L.Map | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const markersRef = useRef<Map<string, L.Marker>>(new Map());
+  const [isMapReady, setIsMapReady] = useState(false);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -106,72 +90,154 @@ export function VehicleMap({ vehicles, selectedVehicleId, onVehicleSelect }: Veh
     });
   };
 
+  const createPopupContent = (vehicle: VehicleWithStatus) => {
+    return `
+      <div style="min-width: 200px; font-family: 'Rajdhani', sans-serif;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="hsl(180, 100%, 50%)" stroke-width="2">
+            <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/>
+            <circle cx="7" cy="17" r="2"/>
+            <circle cx="17" cy="17" r="2"/>
+          </svg>
+          <h3 style="font-family: 'Orbitron', sans-serif; font-weight: 600; font-size: 14px; color: hsl(180, 100%, 95%); margin: 0;">
+            ${vehicle.device_name}
+          </h3>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: ${vehicle.isMoving ? 'hsl(160, 100%, 45%)' : 'hsl(0, 85%, 55%)'}"></div>
+            <span style="color: ${vehicle.isMoving ? 'hsl(160, 100%, 45%)' : 'hsl(0, 85%, 55%)'}">
+              ${vehicle.isMoving ? 'Em movimento' : 'Parado'}
+            </span>
+          </div>
+          
+          <div style="display: flex; align-items: center; gap: 8px; color: hsl(220, 15%, 55%);">
+            <span style="font-weight: 500;">${vehicle.speed.toFixed(1)} km/h</span>
+          </div>
+          
+          <div style="display: flex; align-items: flex-start; gap: 8px; color: hsl(220, 15%, 55%);">
+            <span style="font-size: 11px; line-height: 1.4;">${vehicle.address || 'Endereço não disponível'}</span>
+          </div>
+          
+          <div style="display: flex; align-items: center; gap: 8px; color: hsl(220, 15%, 55%);">
+            <span style="font-size: 11px;">${formatDate(vehicle.devicetime)}</span>
+          </div>
+          
+          <div style="display: flex; align-items: center; gap: 8px; color: hsl(220, 15%, 55%); padding-top: 8px; border-top: 1px solid hsl(220, 30%, 20%);">
+            <span style="font-size: 11px; font-family: monospace;">
+              ${vehicle.latitude.toFixed(5)}, ${vehicle.longitude.toFixed(5)}
+            </span>
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
+  // Initialize map
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
+
+    const defaultCenter: [number, number] = [-15.7801, -47.9292];
+    
+    const map = L.map(mapContainerRef.current, {
+      center: defaultCenter,
+      zoom: 12,
+      zoomControl: true,
+    });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+      maxZoom: 19,
+    }).addTo(map);
+
+    mapRef.current = map;
+    setIsMapReady(true);
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      setIsMapReady(false);
+    };
+  }, []);
+
+  // Update markers when vehicles change
+  useEffect(() => {
+    if (!mapRef.current || !isMapReady) return;
+
+    const map = mapRef.current;
+    const existingMarkers = markersRef.current;
+    const currentVehicleIds = new Set(vehicles.map(v => v.device_id));
+
+    // Remove markers for vehicles that no longer exist
+    existingMarkers.forEach((marker, id) => {
+      if (!currentVehicleIds.has(id)) {
+        marker.remove();
+        existingMarkers.delete(id);
+      }
+    });
+
+    // Add or update markers
+    vehicles.forEach((vehicle) => {
+      const existingMarker = existingMarkers.get(vehicle.device_id);
+      const position: L.LatLngExpression = [vehicle.latitude, vehicle.longitude];
+
+      if (existingMarker) {
+        // Update existing marker position and popup
+        existingMarker.setLatLng(position);
+        existingMarker.setIcon(createCustomIcon(vehicle.isMoving));
+        existingMarker.getPopup()?.setContent(createPopupContent(vehicle));
+      } else {
+        // Create new marker
+        const marker = L.marker(position, {
+          icon: createCustomIcon(vehicle.isMoving),
+        });
+
+        marker.bindPopup(createPopupContent(vehicle), {
+          className: 'custom-popup',
+        });
+
+        marker.on('click', () => {
+          onVehicleSelect(vehicle.device_id);
+        });
+
+        marker.addTo(map);
+        existingMarkers.set(vehicle.device_id, marker);
+      }
+    });
+
+    // Center on first vehicle if no vehicles were there before
+    if (vehicles.length > 0 && existingMarkers.size === vehicles.length && existingMarkers.size > 0) {
+      const firstVehicle = vehicles[0];
+      map.setView([firstVehicle.latitude, firstVehicle.longitude], 12, { animate: false });
+    }
+  }, [vehicles, isMapReady, onVehicleSelect]);
+
+  // Handle selected vehicle change
+  useEffect(() => {
+    if (!mapRef.current || !selectedVehicleId || !isMapReady) return;
+
+    const selectedVehicle = vehicles.find(v => v.device_id === selectedVehicleId);
+    if (selectedVehicle) {
+      mapRef.current.flyTo(
+        [selectedVehicle.latitude, selectedVehicle.longitude],
+        16,
+        { duration: 1 }
+      );
+
+      // Open popup for selected vehicle
+      const marker = markersRef.current.get(selectedVehicleId);
+      if (marker) {
+        marker.openPopup();
+      }
+    }
+  }, [selectedVehicleId, vehicles, isMapReady]);
+
   return (
-    <MapContainer
-      center={defaultCenter}
-      zoom={12}
+    <div 
+      ref={mapContainerRef} 
       className="h-full w-full"
-      zoomControl={true}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      />
-      
-      <MapCenter center={centerOnVehicle} />
-      
-      {vehicles.map((vehicle) => (
-        <Marker
-          key={vehicle.device_id}
-          position={[vehicle.latitude, vehicle.longitude]}
-          icon={createCustomIcon(vehicle.isMoving)}
-          eventHandlers={{
-            click: () => onVehicleSelect(vehicle.device_id),
-          }}
-        >
-          <Popup>
-            <div className="min-w-[200px] font-sans">
-              <div className="flex items-center gap-2 mb-3">
-                <Car className="w-5 h-5 text-neon-cyan" />
-                <h3 className="text-base font-display font-semibold text-foreground">
-                  {vehicle.device_name}
-                </h3>
-              </div>
-              
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${vehicle.isMoving ? 'bg-success' : 'bg-destructive'}`} />
-                  <span className={vehicle.isMoving ? 'text-success' : 'text-destructive'}>
-                    {vehicle.isMoving ? 'Em movimento' : 'Parado'}
-                  </span>
-                </div>
-                
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Gauge className="w-4 h-4" />
-                  <span>{vehicle.speed.toFixed(1)} km/h</span>
-                </div>
-                
-                <div className="flex items-start gap-2 text-muted-foreground">
-                  <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
-                  <span className="text-xs leading-tight">{vehicle.address || 'Endereço não disponível'}</span>
-                </div>
-                
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Clock className="w-4 h-4" />
-                  <span className="text-xs">{formatDate(vehicle.devicetime)}</span>
-                </div>
-                
-                <div className="flex items-center gap-2 text-muted-foreground pt-1 border-t border-border">
-                  <Navigation className="w-4 h-4" />
-                  <span className="text-xs font-mono">
-                    {vehicle.latitude.toFixed(5)}, {vehicle.longitude.toFixed(5)}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+      style={{ background: 'hsl(220, 20%, 6%)' }}
+    />
   );
 }
