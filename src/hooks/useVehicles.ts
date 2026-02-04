@@ -12,19 +12,27 @@ export function useVehicles() {
   const retryCountRef = useRef(0);
   const maxRetries = 2;
 
-  const processVehicles = (data: Vehicle[]): VehicleWithStatus[] => {
-    return data.map((vehicle) => ({
-      ...vehicle,
-      isMoving: vehicle.speed > 0,
-      status: vehicle.speed > 0 ? 'moving' : 'stopped',
-    }));
+  const processVehicles = (data: Vehicle[], isMock: boolean = false): VehicleWithStatus[] => {
+    return data.map((vehicle) => {
+      // Para dados mockados, simular ignição baseado na velocidade
+      const ignition = isMock ? vehicle.speed > 0 : undefined;
+      const batteryLevel = isMock ? Math.floor(Math.random() * 30) + 70 : undefined;
+      
+      return {
+        ...vehicle,
+        isMoving: vehicle.speed > 0,
+        status: vehicle.speed > 5 ? 'moving' : vehicle.speed > 0 ? 'idle' : 'stopped',
+        ignition,
+        batteryLevel,
+      };
+    });
   };
 
   const fetchVehicles = useCallback(async () => {
     // Se forçar dados mockados, use-os diretamente
     if (API_CONFIG.FORCE_MOCK_DATA) {
       const mockData = getAnimatedMockVehicles();
-      setVehicles(processVehicles(mockData));
+      setVehicles(processVehicles(mockData, true));
       setLastUpdate(new Date());
       setIsUsingMockData(true);
       setIsLoading(false);
@@ -48,7 +56,7 @@ export function useVehicles() {
       
       const data: Vehicle[] = await response.json();
       
-      setVehicles(processVehicles(data));
+      setVehicles(processVehicles(data, false));
       setLastUpdate(new Date());
       setError(null);
       setIsUsingMockData(false);
@@ -62,7 +70,7 @@ export function useVehicles() {
       // Após algumas tentativas falhas, usa dados mockados silenciosamente
       if (retryCountRef.current >= maxRetries) {
         const mockData = getAnimatedMockVehicles();
-        setVehicles(processVehicles(mockData));
+        setVehicles(processVehicles(mockData, true));
         setLastUpdate(new Date());
         setIsUsingMockData(true);
         setError(null); // Não mostra erro, usa mock silenciosamente
@@ -83,8 +91,8 @@ export function useVehicles() {
     return () => clearInterval(interval);
   }, [fetchVehicles]);
 
-  const movingCount = vehicles.filter((v) => v.isMoving).length;
-  const stoppedCount = vehicles.filter((v) => !v.isMoving).length;
+  const movingCount = vehicles.filter((v) => v.speed > 5).length;
+  const stoppedCount = vehicles.filter((v) => v.speed <= 5).length;
 
   return {
     vehicles,

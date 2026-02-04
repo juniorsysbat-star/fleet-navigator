@@ -2,13 +2,48 @@ import { useState } from 'react';
 import { useVehicles } from '@/hooks/useVehicles';
 import { VehicleMap } from '@/components/VehicleMap';
 import { VehicleSidebar } from '@/components/VehicleSidebar';
+import { VehicleDetailPanel } from '@/components/VehicleDetailPanel';
 import { AlertCircle, Database } from 'lucide-react';
+import { generateMockTrail, MOCK_TRAILS } from '@/data/mockVehicles';
 
 const Dashboard = () => {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [showTrail, setShowTrail] = useState(false);
+  const [trailData, setTrailData] = useState<{ lat: number; lng: number }[] | null>(null);
+  
   const { vehicles, isLoading, error, lastUpdate, movingCount, stoppedCount, isUsingMockData, refetch } = useVehicles();
+  
+  const selectedVehicle = vehicles.find(v => v.device_id === selectedVehicleId) || null;
+
   const handleVehicleSelect = (id: string) => {
-    setSelectedVehicleId(id === selectedVehicleId ? null : id);
+    if (id === selectedVehicleId) {
+      // Don't deselect, keep panel open
+      return;
+    }
+    setSelectedVehicleId(id);
+    setShowTrail(false);
+    setTrailData(null);
+  };
+
+  const handleClosePanel = () => {
+    setSelectedVehicleId(null);
+    setShowTrail(false);
+    setTrailData(null);
+  };
+
+  const handleShowTrail = (vehicleId: string) => {
+    if (showTrail) {
+      setShowTrail(false);
+      setTrailData(null);
+    } else {
+      const vehicle = vehicles.find(v => v.device_id === vehicleId);
+      if (vehicle) {
+        // Use mock trails or generate dynamic trail
+        const mockTrail = MOCK_TRAILS[vehicleId] || generateMockTrail(vehicle.latitude, vehicle.longitude);
+        setTrailData(mockTrail);
+        setShowTrail(true);
+      }
+    }
   };
 
   return (
@@ -45,49 +80,60 @@ const Dashboard = () => {
 
         {/* Grid Overlay Effect */}
         <div 
-          className="absolute inset-0 pointer-events-none z-10 opacity-[0.03]"
+          className="absolute inset-0 pointer-events-none z-10 opacity-[0.02]"
           style={{
             backgroundImage: 'linear-gradient(hsl(var(--neon-cyan)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--neon-cyan)) 1px, transparent 1px)',
-            backgroundSize: '50px 50px',
+            backgroundSize: '60px 60px',
           }}
         />
 
         {/* Scan Line Effect */}
         <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
           <div 
-            className="w-full h-px bg-gradient-to-r from-transparent via-neon-cyan/30 to-transparent animate-scan-line"
+            className="w-full h-px bg-gradient-to-r from-transparent via-neon-cyan/20 to-transparent animate-scan-line"
           />
         </div>
 
         {/* Corner Decorations */}
-        <div className="absolute top-4 left-4 w-12 h-12 border-l-2 border-t-2 border-accent/50 pointer-events-none z-10" />
-        <div className="absolute top-4 right-4 w-12 h-12 border-r-2 border-t-2 border-accent/50 pointer-events-none z-10" />
-        <div className="absolute bottom-4 left-4 w-12 h-12 border-l-2 border-b-2 border-accent/50 pointer-events-none z-10" />
-        <div className="absolute bottom-4 right-4 w-12 h-12 border-r-2 border-b-2 border-accent/50 pointer-events-none z-10" />
+        <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-accent/40 pointer-events-none z-10" />
+        <div className="absolute top-4 right-4 w-8 h-8 border-r-2 border-t-2 border-accent/40 pointer-events-none z-10" />
+        <div className="absolute bottom-4 left-4 w-8 h-8 border-l-2 border-b-2 border-accent/40 pointer-events-none z-10" />
+        <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-accent/40 pointer-events-none z-10" />
 
         {/* Map */}
         <VehicleMap
           vehicles={vehicles}
           selectedVehicleId={selectedVehicleId}
           onVehicleSelect={handleVehicleSelect}
+          trailData={showTrail ? trailData : null}
         />
 
         {/* Status Bar */}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] px-4 py-2 bg-card/90 backdrop-blur-sm border border-border rounded-full flex items-center gap-4 text-xs font-medium">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <span className="text-muted-foreground">SISTEMA ONLINE</span>
+            <span className="text-muted-foreground uppercase tracking-wide">Sistema Online</span>
           </div>
           <div className="w-px h-4 bg-border" />
-          <span className="text-foreground font-display">
-            {vehicles.length} VEÍCULOS MONITORADOS
+          <span className="text-foreground font-display tracking-wide">
+            {vehicles.length} VEÍCULOS
           </span>
           <div className="w-px h-4 bg-border" />
-          <span className="text-muted-foreground">
-            REFRESH: 10s
+          <span className="text-muted-foreground font-mono text-[10px]">
+            AUTO-REFRESH: 10s
           </span>
         </div>
       </main>
+
+      {/* Detail Panel */}
+      {selectedVehicle && (
+        <VehicleDetailPanel
+          vehicle={selectedVehicle}
+          onClose={handleClosePanel}
+          onShowTrail={handleShowTrail}
+          isTrailVisible={showTrail}
+        />
+      )}
     </div>
   );
 };

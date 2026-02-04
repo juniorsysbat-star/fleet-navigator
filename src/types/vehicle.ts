@@ -8,7 +8,12 @@ export interface Vehicle {
   devicetime: string;
 }
 
+export type VehicleStatus = 'moving' | 'stopped' | 'idle' | 'offline' | 'unknown';
+
 export interface VehicleWithStatus extends Vehicle {
   isMoving: boolean;
-  status: 'moving' | 'stopped';
+  status: VehicleStatus;
+  ignition?: boolean;
+  batteryLevel?: number;
+  historyTrail?: { lat: number; lng: number }[];
 }

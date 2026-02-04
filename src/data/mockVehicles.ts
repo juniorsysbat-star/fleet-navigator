@@ -54,6 +54,46 @@ export const MOCK_VEHICLES: Vehicle[] = [
   },
 ];
 
+// Histórico de trajeto mockado para cada veículo
+export const MOCK_TRAILS: Record<string, { lat: number; lng: number }[]> = {
+  'mock-001': [
+    { lat: -23.5605, lng: -46.6433 },
+    { lat: -23.5585, lng: -46.6403 },
+    { lat: -23.5565, lng: -46.6373 },
+    { lat: -23.5545, lng: -46.6353 },
+    { lat: -23.5525, lng: -46.6343 },
+    { lat: -23.5505, lng: -46.6333 },
+  ],
+  'mock-002': [
+    { lat: -22.9168, lng: -43.1829 },
+    { lat: -22.9148, lng: -43.1799 },
+    { lat: -22.9118, lng: -43.1769 },
+    { lat: -22.9088, lng: -43.1749 },
+    { lat: -22.9068, lng: -43.1729 },
+  ],
+  'mock-003': [
+    { lat: -19.9267, lng: -43.9445 },
+    { lat: -19.9237, lng: -43.9415 },
+    { lat: -19.9207, lng: -43.9385 },
+    { lat: -19.9187, lng: -43.9365 },
+    { lat: -19.9167, lng: -43.9345 },
+  ],
+  'mock-004': [
+    { lat: -25.4384, lng: -49.2833 },
+    { lat: -25.4354, lng: -49.2803 },
+    { lat: -25.4334, lng: -49.2773 },
+    { lat: -25.4314, lng: -49.2753 },
+    { lat: -25.4284, lng: -49.2733 },
+  ],
+  'mock-005': [
+    { lat: -30.0446, lng: -51.2277 },
+    { lat: -30.0416, lng: -51.2247 },
+    { lat: -30.0386, lng: -51.2217 },
+    { lat: -30.0366, lng: -51.2197 },
+    { lat: -30.0346, lng: -51.2177 },
+  ],
+};
+
 // Simula movimento aleatório para tornar os dados mockados mais realistas
 export const getAnimatedMockVehicles = (): Vehicle[] => {
   return MOCK_VEHICLES.map((vehicle) => ({
@@ -72,3 +112,26 @@ export const getAnimatedMockVehicles = (): Vehicle[] => {
     devicetime: new Date().toISOString(),
   }));
 };
+
+// Gera um trajeto mockado dinamicamente baseado na posição atual
+export const generateMockTrail = (
+  currentLat: number, 
+  currentLng: number, 
+  pointCount: number = 8
+): { lat: number; lng: number }[] => {
+  const trail: { lat: number; lng: number }[] = [];
+  let lat = currentLat + 0.015;
+  let lng = currentLng + 0.015;
+  
+  for (let i = 0; i < pointCount; i++) {
+    trail.push({ lat, lng });
+    lat -= 0.002 + Math.random() * 0.001;
+    lng -= 0.002 + Math.random() * 0.001;
+  }
+  
+  // Adiciona posição atual como último ponto
+  trail.push({ lat: currentLat, lng: currentLng });
+  
+  return trail;
+};
+
