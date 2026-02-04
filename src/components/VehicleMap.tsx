@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { VehicleWithStatus } from '@/types/vehicle';
-import { Car, MapPin, Gauge, Clock, Navigation } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
 // Fix default marker icons
@@ -12,10 +11,16 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-// Custom marker icons
-const createCustomIcon = (isMoving: boolean) => {
-  const color = isMoving ? '#00ff88' : '#ff4444';
-  const glowColor = isMoving ? 'rgba(0, 255, 136, 0.5)' : 'rgba(255, 68, 68, 0.5)';
+// Custom marker icons with status colors
+const createCustomIcon = (status: 'moving' | 'idle' | 'offline' | 'unknown') => {
+  const colors = {
+    moving: { main: '#00ff88', glow: 'rgba(0, 255, 136, 0.5)' },
+    idle: { main: '#ffcc00', glow: 'rgba(255, 204, 0, 0.5)' },
+    offline: { main: '#ff4444', glow: 'rgba(255, 68, 68, 0.5)' },
+    unknown: { main: '#666666', glow: 'rgba(102, 102, 102, 0.5)' },
+  };
+  
+  const { main: color, glow: glowColor } = colors[status];
   
   return L.divIcon({
     className: 'custom-marker',
@@ -68,16 +73,30 @@ const createCustomIcon = (isMoving: boolean) => {
   });
 };
 
+const getVehicleMarkerStatus = (vehicle: VehicleWithStatus): 'moving' | 'idle' | 'offline' | 'unknown' => {
+  if (vehicle.speed > 5) return 'moving';
+  if (vehicle.ignition === true || vehicle.speed > 0) return 'idle';
+  if (vehicle.ignition === false) return 'offline';
+  return 'unknown';
+};
+
 interface VehicleMapProps {
   vehicles: VehicleWithStatus[];
   selectedVehicleId: string | null;
   onVehicleSelect: (id: string) => void;
+  trailData?: { lat: number; lng: number }[] | null;
 }
 
-export function VehicleMap({ vehicles, selectedVehicleId, onVehicleSelect }: VehicleMapProps) {
+export function VehicleMap({ 
+  vehicles, 
+  selectedVehicleId, 
+  onVehicleSelect,
+  trailData 
+}: VehicleMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
+  const polylineRef = useRef<L.Polyline | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
 
   const formatDate = (dateString: string) => {
@@ -91,6 +110,20 @@ export function VehicleMap({ vehicles, selectedVehicleId, onVehicleSelect }: Veh
   };
 
   const createPopupContent = (vehicle: VehicleWithStatus) => {
+    const status = getVehicleMarkerStatus(vehicle);
+    const statusColors = {
+      moving: 'hsl(160, 100%, 45%)',
+      idle: 'hsl(50, 100%, 55%)',
+      offline: 'hsl(0, 85%, 55%)',
+      unknown: 'hsl(220, 15%, 55%)',
+    };
+    const statusLabels = {
+      moving: 'Em movimento',
+      idle: 'Parado ligado',
+      offline: 'Offline',
+      unknown: 'Desconhecido',
+    };
+
     return `
       <div style="min-width: 200px; font-family: 'Rajdhani', sans-serif;">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
@@ -106,9 +139,9 @@ export function VehicleMap({ vehicles, selectedVehicleId, onVehicleSelect }: Veh
         
         <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <div style="width: 8px; height: 8px; border-radius: 50%; background: ${vehicle.isMoving ? 'hsl(160, 100%, 45%)' : 'hsl(0, 85%, 55%)'}"></div>
-            <span style="color: ${vehicle.isMoving ? 'hsl(160, 100%, 45%)' : 'hsl(0, 85%, 55%)'}">
-              ${vehicle.isMoving ? 'Em movimento' : 'Parado'}
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColors[status]}"></div>
+            <span style="color: ${statusColors[status]}">
+              ${statusLabels[status]}
             </span>
           </div>
           
@@ -181,16 +214,17 @@ export function VehicleMap({ vehicles, selectedVehicleId, onVehicleSelect }: Veh
     vehicles.forEach((vehicle) => {
       const existingMarker = existingMarkers.get(vehicle.device_id);
       const position: L.LatLngExpression = [vehicle.latitude, vehicle.longitude];
+      const status = getVehicleMarkerStatus(vehicle);
 
       if (existingMarker) {
         // Update existing marker position and popup
         existingMarker.setLatLng(position);
-        existingMarker.setIcon(createCustomIcon(vehicle.isMoving));
+        existingMarker.setIcon(createCustomIcon(status));
         existingMarker.getPopup()?.setContent(createPopupContent(vehicle));
       } else {
         // Create new marker
         const marker = L.marker(position, {
-          icon: createCustomIcon(vehicle.isMoving),
+          icon: createCustomIcon(status),
         });
 
         marker.bindPopup(createPopupContent(vehicle), {
@@ -232,6 +266,68 @@ export function VehicleMap({ vehicles, selectedVehicleId, onVehicleSelect }: Veh
       }
     }
   }, [selectedVehicleId, vehicles, isMapReady]);
+
+  // Handle trail polyline
+  useEffect(() => {
+    if (!mapRef.current || !isMapReady) return;
+
+    const map = mapRef.current;
+
+    // Remove existing polyline
+    if (polylineRef.current) {
+      polylineRef.current.remove();
+      polylineRef.current = null;
+    }
+
+    // Draw new polyline if trail data exists
+    if (trailData && trailData.length > 1) {
+      const latLngs: L.LatLngExpression[] = trailData.map(p => [p.lat, p.lng]);
+      
+      const polyline = L.polyline(latLngs, {
+        color: '#00bfff',
+        weight: 4,
+        opacity: 0.8,
+        dashArray: '10, 10',
+        lineCap: 'round',
+        lineJoin: 'round',
+      });
+
+      // Add glow effect with shadow polyline
+      const shadowPolyline = L.polyline(latLngs, {
+        color: '#00bfff',
+        weight: 12,
+        opacity: 0.3,
+        lineCap: 'round',
+        lineJoin: 'round',
+      });
+
+      shadowPolyline.addTo(map);
+      polyline.addTo(map);
+
+      // Add start and end markers
+      const startIcon = L.divIcon({
+        className: 'trail-marker',
+        html: `<div style="width: 12px; height: 12px; background: #00bfff; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 10px #00bfff;"></div>`,
+        iconSize: [12, 12],
+        iconAnchor: [6, 6],
+      });
+
+      const endIcon = L.divIcon({
+        className: 'trail-marker',
+        html: `<div style="width: 16px; height: 16px; background: #00ff88; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 10px #00ff88;"></div>`,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      });
+
+      L.marker(latLngs[0], { icon: startIcon }).addTo(map);
+      L.marker(latLngs[latLngs.length - 1], { icon: endIcon }).addTo(map);
+
+      polylineRef.current = polyline;
+
+      // Fit bounds to show entire trail
+      map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+    }
+  }, [trailData, isMapReady]);
 
   return (
     <div 
