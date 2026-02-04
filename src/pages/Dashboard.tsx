@@ -2,12 +2,11 @@ import { useState } from 'react';
 import { useVehicles } from '@/hooks/useVehicles';
 import { VehicleMap } from '@/components/VehicleMap';
 import { VehicleSidebar } from '@/components/VehicleSidebar';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Database } from 'lucide-react';
 
 const Dashboard = () => {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
-  const { vehicles, isLoading, error, lastUpdate, movingCount, stoppedCount, refetch } = useVehicles();
-
+  const { vehicles, isLoading, error, lastUpdate, movingCount, stoppedCount, isUsingMockData, refetch } = useVehicles();
   const handleVehicleSelect = (id: string) => {
     setSelectedVehicleId(id === selectedVehicleId ? null : id);
   };
@@ -28,11 +27,19 @@ const Dashboard = () => {
 
       {/* Map Container */}
       <main className="flex-1 relative">
+        {/* Mock Data Banner */}
+        {isUsingMockData && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] px-4 py-2 bg-warning/90 text-warning-foreground rounded-lg flex items-center gap-2 shadow-lg backdrop-blur-sm border border-warning/50">
+            <Database className="w-4 h-4" />
+            <span className="text-sm font-medium">Modo Demo - Dados Simulados</span>
+          </div>
+        )}
+
         {/* Error Banner */}
-        {error && (
+        {error && !isUsingMockData && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] px-4 py-2 bg-destructive/90 text-destructive-foreground rounded-lg flex items-center gap-2 shadow-lg backdrop-blur-sm">
             <AlertCircle className="w-4 h-4" />
-            <span className="text-sm font-medium">Erro ao conectar: {error}</span>
+            <span className="text-sm font-medium">{error}</span>
           </div>
         )}
 
