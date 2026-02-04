@@ -3,6 +3,9 @@ import L from 'leaflet';
 import { VehicleWithStatus } from '@/types/vehicle';
 import { Geofence } from '@/data/mockGeofences';
 import { Mission } from '@/types/mission';
+import { Button } from '@/components/ui/button';
+import { TrafficCone, Layers } from 'lucide-react';
+import { getCurrentRoadSpeedLimit } from '@/services/routingService';
 import 'leaflet/dist/leaflet.css';
 
 // Fix default marker icons
@@ -13,16 +16,18 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-// Custom marker icons with status colors
-const createCustomIcon = (status: 'moving' | 'idle' | 'offline' | 'unknown') => {
+// Custom marker icons with status colors - now includes speeding state
+const createCustomIcon = (status: 'moving' | 'idle' | 'offline' | 'unknown' | 'speeding') => {
   const colors = {
     moving: { main: '#00ff88', glow: 'rgba(0, 255, 136, 0.5)' },
     idle: { main: '#ffcc00', glow: 'rgba(255, 204, 0, 0.5)' },
     offline: { main: '#ff4444', glow: 'rgba(255, 68, 68, 0.5)' },
     unknown: { main: '#666666', glow: 'rgba(102, 102, 102, 0.5)' },
+    speeding: { main: '#ff0000', glow: 'rgba(255, 0, 0, 0.8)' },
   };
   
   const { main: color, glow: glowColor } = colors[status];
+  const isSpeeding = status === 'speeding';
   
   return L.divIcon({
     className: 'custom-marker',
@@ -41,19 +46,19 @@ const createCustomIcon = (status: 'moving' | 'idle' | 'offline' | 'unknown') => 
           height: 40px;
           background: ${glowColor};
           border-radius: 50%;
-          animation: pulse 2s infinite;
+          animation: ${isSpeeding ? 'pulse-fast' : 'pulse'} ${isSpeeding ? '0.5s' : '2s'} infinite;
         "></div>
         <div style="
           position: relative;
           width: 32px;
           height: 32px;
-          background: linear-gradient(135deg, hsl(220 25% 15%) 0%, hsl(220 30% 10%) 100%);
+          background: linear-gradient(135deg, ${isSpeeding ? 'hsl(0 60% 15%)' : 'hsl(220 25% 15%)'} 0%, ${isSpeeding ? 'hsl(0 70% 10%)' : 'hsl(220 30% 10%)'} 100%);
           border: 2px solid ${color};
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 0 15px ${glowColor};
+          box-shadow: 0 0 ${isSpeeding ? '25px' : '15px'} ${glowColor};
         ">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2">
             <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/>
@@ -61,11 +66,34 @@ const createCustomIcon = (status: 'moving' | 'idle' | 'offline' | 'unknown') => 
             <circle cx="17" cy="17" r="2"/>
           </svg>
         </div>
+        ${isSpeeding ? `
+          <div style="
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 20px;
+            height: 20px;
+            background: #ff0000;
+            border: 2px solid white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: white;
+            animation: pulse-fast 0.5s infinite;
+          ">!</div>
+        ` : ''}
       </div>
       <style>
         @keyframes pulse {
           0%, 100% { transform: scale(1); opacity: 0.5; }
           50% { transform: scale(1.5); opacity: 0; }
+        }
+        @keyframes pulse-fast {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.2); opacity: 0.6; }
         }
       </style>
     `,
@@ -117,7 +145,38 @@ export function VehicleMap({
   const missionRouteRef = useRef<L.Polyline | null>(null);
   const missionCorridorRef = useRef<L.Polyline | null>(null);
   const missionMarkersRef = useRef<L.Marker[]>([]);
+  const trafficLayerRef = useRef<L.TileLayer | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
+  const [isTrafficEnabled, setIsTrafficEnabled] = useState(false);
+
+  // Toggle traffic layer
+  const handleToggleTraffic = useCallback(() => {
+    if (!mapRef.current || !isMapReady) return;
+
+    const map = mapRef.current;
+
+    if (isTrafficEnabled) {
+      // Remove traffic layer
+      if (trafficLayerRef.current) {
+        map.removeLayer(trafficLayerRef.current);
+        trafficLayerRef.current = null;
+      }
+      setIsTrafficEnabled(false);
+    } else {
+      // Add traffic layer using Google Traffic tiles
+      // Note: This uses Google's traffic tiles which may have usage limitations
+      const trafficLayer = L.tileLayer(
+        'https://mt0.google.com/vt/lyrs=m@221097413,traffic&x={x}&y={y}&z={z}',
+        {
+          maxZoom: 19,
+          opacity: 0.7,
+        }
+      );
+      trafficLayer.addTo(map);
+      trafficLayerRef.current = trafficLayer;
+      setIsTrafficEnabled(true);
+    }
+  }, [isMapReady, isTrafficEnabled]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -292,7 +351,7 @@ export function VehicleMap({
     }
   }, [isDrawingGeofence, isMapReady, onGeofenceDrawn, clearDrawingState]);
 
-  // Update markers when vehicles change
+  // Update markers when vehicles change - with mission speed violation detection
   useEffect(() => {
     if (!mapRef.current || !isMapReady) return;
 
@@ -312,15 +371,31 @@ export function VehicleMap({
     vehicles.forEach((vehicle) => {
       const existingMarker = existingMarkers.get(vehicle.device_id);
       const position: L.LatLngExpression = [vehicle.latitude, vehicle.longitude];
-      const status = getVehicleMarkerStatus(vehicle);
+      
+      // Check if this vehicle is speeding (if in active mission)
+      let markerStatus: 'moving' | 'idle' | 'offline' | 'unknown' | 'speeding' = getVehicleMarkerStatus(vehicle);
+      
+      if (activeMission && vehicle.device_id === activeMission.vehicleId) {
+        // Check against road speed limit
+        const vehiclePosition = { lat: vehicle.latitude, lng: vehicle.longitude };
+        const roadSpeed = getCurrentRoadSpeedLimit(
+          vehiclePosition,
+          activeMission.routeCoordinates,
+          activeMission.routeSpeedLimits
+        );
+        
+        if (vehicle.speed > roadSpeed.maxSpeed) {
+          markerStatus = 'speeding';
+        }
+      }
 
       if (existingMarker) {
         existingMarker.setLatLng(position);
-        existingMarker.setIcon(createCustomIcon(status));
+        existingMarker.setIcon(createCustomIcon(markerStatus));
         existingMarker.getPopup()?.setContent(createPopupContent(vehicle));
       } else {
         const marker = L.marker(position, {
-          icon: createCustomIcon(status),
+          icon: createCustomIcon(markerStatus),
         });
 
         marker.bindPopup(createPopupContent(vehicle), {
@@ -341,7 +416,7 @@ export function VehicleMap({
       const firstVehicle = vehicles[0];
       map.setView([firstVehicle.latitude, firstVehicle.longitude], 13, { animate: false });
     }
-  }, [vehicles, isMapReady, onVehicleSelect]);
+  }, [vehicles, isMapReady, onVehicleSelect, activeMission]);
 
   // Handle selected vehicle change
   useEffect(() => {
@@ -596,10 +671,33 @@ export function VehicleMap({
   }, [activeMission, isMapReady]);
 
   return (
-    <div 
-      ref={mapContainerRef} 
-      className="h-full w-full"
-      style={{ background: 'hsl(220, 20%, 6%)' }}
-    />
+    <div className="relative h-full w-full">
+      {/* Map Container */}
+      <div 
+        ref={mapContainerRef} 
+        className="h-full w-full"
+        style={{ background: 'hsl(220, 20%, 6%)' }}
+      />
+
+      {/* Traffic Layer Toggle Button */}
+      <div className="absolute top-4 right-4 z-[1000]">
+        <Button
+          variant={isTrafficEnabled ? "default" : "outline"}
+          size="sm"
+          onClick={handleToggleTraffic}
+          className={`gap-2 backdrop-blur-sm ${
+            isTrafficEnabled 
+              ? 'bg-warning/90 hover:bg-warning text-warning-foreground border-warning' 
+              : 'bg-card/90 hover:bg-card border-border'
+          }`}
+        >
+          <TrafficCone className={`w-4 h-4 ${isTrafficEnabled ? '' : 'text-muted-foreground'}`} />
+          <span className="text-xs font-medium">
+            {isTrafficEnabled ? 'Tráfego ON' : 'Tráfego'}
+          </span>
+          <Layers className={`w-3 h-3 ${isTrafficEnabled ? 'animate-pulse' : 'text-muted-foreground'}`} />
+        </Button>
+      </div>
+    </div>
   );
 }
