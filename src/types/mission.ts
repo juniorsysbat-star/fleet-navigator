@@ -4,6 +4,13 @@ export interface MissionWaypoint {
   name: string;
 }
 
+export interface RouteSegmentSpeed {
+  startIndex: number;
+  endIndex: number;
+  maxSpeed: number; // km/h from OSM data
+  roadName?: string;
+}
+
 export interface Mission {
   id: string;
   name: string;
@@ -13,6 +20,7 @@ export interface Mission {
   maxSpeed: number;
   corridorWidth: number; // in meters
   routeCoordinates: { lat: number; lng: number }[];
+  routeSpeedLimits: RouteSegmentSpeed[]; // Speed limits per segment
   distance: number; // in meters
   duration: number; // in seconds
   status: 'active' | 'completed' | 'paused' | 'deviation';
@@ -23,4 +31,5 @@ export interface RouteInfo {
   distance: number;
   duration: number;
   coordinates: { lat: number; lng: number }[];
+  speedLimits: RouteSegmentSpeed[];
 }

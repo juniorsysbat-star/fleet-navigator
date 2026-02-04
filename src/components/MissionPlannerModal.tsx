@@ -80,6 +80,7 @@ export function MissionPlannerModal({
         maxSpeed,
         corridorWidth,
         routeCoordinates: routeInfo.coordinates,
+        routeSpeedLimits: routeInfo.speedLimits,
         distance: routeInfo.distance,
         duration: routeInfo.duration,
         status: 'active',
