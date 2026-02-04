@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import { VehicleWithStatus } from '@/types/vehicle';
+import { Geofence } from '@/data/mockGeofences';
 import 'leaflet/dist/leaflet.css';
 
 // Fix default marker icons
@@ -85,18 +86,31 @@ interface VehicleMapProps {
   selectedVehicleId: string | null;
   onVehicleSelect: (id: string) => void;
   trailData?: { lat: number; lng: number }[] | null;
+  geofences?: Geofence[];
+  isDrawingGeofence?: boolean;
+  onGeofenceDrawn?: (coordinates: { lat: number; lng: number }[]) => void;
+  selectedGeofenceId?: string | null;
 }
 
 export function VehicleMap({ 
   vehicles, 
   selectedVehicleId, 
   onVehicleSelect,
-  trailData 
+  trailData,
+  geofences = [],
+  isDrawingGeofence = false,
+  onGeofenceDrawn,
+  selectedGeofenceId
 }: VehicleMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
   const polylineRef = useRef<L.Polyline | null>(null);
+  const trailMarkersRef = useRef<L.Marker[]>([]);
+  const geofenceLayersRef = useRef<Map<string, L.Polygon>>(new Map());
+  const drawingPointsRef = useRef<{ lat: number; lng: number }[]>([]);
+  const drawingLayerRef = useRef<L.Polygon | null>(null);
+  const drawingMarkersRef = useRef<L.Marker[]>([]);
   const [isMapReady, setIsMapReady] = useState(false);
 
   const formatDate = (dateString: string) => {
@@ -156,26 +170,31 @@ export function VehicleMap({
           <div style="display: flex; align-items: center; gap: 8px; color: hsl(220, 15%, 55%);">
             <span style="font-size: 11px;">${formatDate(vehicle.devicetime)}</span>
           </div>
-          
-          <div style="display: flex; align-items: center; gap: 8px; color: hsl(220, 15%, 55%); padding-top: 8px; border-top: 1px solid hsl(220, 30%, 20%);">
-            <span style="font-size: 11px; font-family: monospace;">
-              ${vehicle.latitude.toFixed(5)}, ${vehicle.longitude.toFixed(5)}
-            </span>
-          </div>
         </div>
       </div>
     `;
   };
 
+  // Clear drawing state
+  const clearDrawingState = useCallback(() => {
+    drawingPointsRef.current = [];
+    if (drawingLayerRef.current) {
+      drawingLayerRef.current.remove();
+      drawingLayerRef.current = null;
+    }
+    drawingMarkersRef.current.forEach(m => m.remove());
+    drawingMarkersRef.current = [];
+  }, []);
+
   // Initialize map
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
-    const defaultCenter: [number, number] = [-15.7801, -47.9292];
+    const defaultCenter: [number, number] = [-23.5505, -46.6333];
     
     const map = L.map(mapContainerRef.current, {
       center: defaultCenter,
-      zoom: 12,
+      zoom: 13,
       zoomControl: true,
     });
 
@@ -193,6 +212,79 @@ export function VehicleMap({
       setIsMapReady(false);
     };
   }, []);
+
+  // Handle geofence drawing
+  useEffect(() => {
+    if (!mapRef.current || !isMapReady) return;
+
+    const map = mapRef.current;
+
+    if (isDrawingGeofence) {
+      map.getContainer().style.cursor = 'crosshair';
+      
+      const onClick = (e: L.LeafletMouseEvent) => {
+        const point = { lat: e.latlng.lat, lng: e.latlng.lng };
+        
+        // Check if clicking near first point to close polygon
+        if (drawingPointsRef.current.length >= 3) {
+          const firstPoint = drawingPointsRef.current[0];
+          const distance = map.latLngToLayerPoint(e.latlng)
+            .distanceTo(map.latLngToLayerPoint(L.latLng(firstPoint.lat, firstPoint.lng)));
+          
+          if (distance < 20) {
+            // Close polygon
+            if (onGeofenceDrawn) {
+              onGeofenceDrawn(drawingPointsRef.current);
+            }
+            clearDrawingState();
+            return;
+          }
+        }
+
+        drawingPointsRef.current.push(point);
+
+        // Add marker for this point
+        const marker = L.marker([point.lat, point.lng], {
+          icon: L.divIcon({
+            className: 'drawing-marker',
+            html: `<div style="width: 12px; height: 12px; background: #00bfff; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 10px #00bfff;"></div>`,
+            iconSize: [12, 12],
+            iconAnchor: [6, 6],
+          }),
+        }).addTo(map);
+        drawingMarkersRef.current.push(marker);
+
+        // Update polygon preview
+        if (drawingLayerRef.current) {
+          drawingLayerRef.current.remove();
+        }
+
+        if (drawingPointsRef.current.length >= 2) {
+          drawingLayerRef.current = L.polygon(
+            drawingPointsRef.current.map(p => [p.lat, p.lng] as L.LatLngExpression),
+            {
+              color: '#00bfff',
+              weight: 2,
+              fillColor: '#00bfff',
+              fillOpacity: 0.2,
+              dashArray: '5, 10',
+            }
+          ).addTo(map);
+        }
+      };
+
+      map.on('click', onClick);
+
+      return () => {
+        map.off('click', onClick);
+        map.getContainer().style.cursor = '';
+        clearDrawingState();
+      };
+    } else {
+      map.getContainer().style.cursor = '';
+      clearDrawingState();
+    }
+  }, [isDrawingGeofence, isMapReady, onGeofenceDrawn, clearDrawingState]);
 
   // Update markers when vehicles change
   useEffect(() => {
@@ -217,12 +309,10 @@ export function VehicleMap({
       const status = getVehicleMarkerStatus(vehicle);
 
       if (existingMarker) {
-        // Update existing marker position and popup
         existingMarker.setLatLng(position);
         existingMarker.setIcon(createCustomIcon(status));
         existingMarker.getPopup()?.setContent(createPopupContent(vehicle));
       } else {
-        // Create new marker
         const marker = L.marker(position, {
           icon: createCustomIcon(status),
         });
@@ -240,10 +330,10 @@ export function VehicleMap({
       }
     });
 
-    // Center on first vehicle if no vehicles were there before
-    if (vehicles.length > 0 && existingMarkers.size === vehicles.length && existingMarkers.size > 0) {
+    // Center on first vehicle if needed
+    if (vehicles.length > 0 && existingMarkers.size === vehicles.length) {
       const firstVehicle = vehicles[0];
-      map.setView([firstVehicle.latitude, firstVehicle.longitude], 12, { animate: false });
+      map.setView([firstVehicle.latitude, firstVehicle.longitude], 13, { animate: false });
     }
   }, [vehicles, isMapReady, onVehicleSelect]);
 
@@ -259,7 +349,6 @@ export function VehicleMap({
         { duration: 1 }
       );
 
-      // Open popup for selected vehicle
       const marker = markersRef.current.get(selectedVehicleId);
       if (marker) {
         marker.openPopup();
@@ -273,16 +362,27 @@ export function VehicleMap({
 
     const map = mapRef.current;
 
-    // Remove existing polyline
+    // Remove existing trail
     if (polylineRef.current) {
       polylineRef.current.remove();
       polylineRef.current = null;
     }
+    trailMarkersRef.current.forEach(m => m.remove());
+    trailMarkersRef.current = [];
 
-    // Draw new polyline if trail data exists
+    // Draw new trail
     if (trailData && trailData.length > 1) {
       const latLngs: L.LatLngExpression[] = trailData.map(p => [p.lat, p.lng]);
       
+      // Shadow polyline for glow
+      L.polyline(latLngs, {
+        color: '#00bfff',
+        weight: 12,
+        opacity: 0.3,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }).addTo(map);
+
       const polyline = L.polyline(latLngs, {
         color: '#00bfff',
         weight: 4,
@@ -290,44 +390,91 @@ export function VehicleMap({
         dashArray: '10, 10',
         lineCap: 'round',
         lineJoin: 'round',
-      });
+      }).addTo(map);
 
-      // Add glow effect with shadow polyline
-      const shadowPolyline = L.polyline(latLngs, {
-        color: '#00bfff',
-        weight: 12,
-        opacity: 0.3,
-        lineCap: 'round',
-        lineJoin: 'round',
-      });
+      // Start marker
+      const startMarker = L.marker(latLngs[0], {
+        icon: L.divIcon({
+          className: 'trail-marker',
+          html: `<div style="width: 12px; height: 12px; background: #00bfff; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 10px #00bfff;"></div>`,
+          iconSize: [12, 12],
+          iconAnchor: [6, 6],
+        }),
+      }).addTo(map);
 
-      shadowPolyline.addTo(map);
-      polyline.addTo(map);
+      // End marker
+      const endMarker = L.marker(latLngs[latLngs.length - 1], {
+        icon: L.divIcon({
+          className: 'trail-marker',
+          html: `<div style="width: 16px; height: 16px; background: #00ff88; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 10px #00ff88;"></div>`,
+          iconSize: [16, 16],
+          iconAnchor: [8, 8],
+        }),
+      }).addTo(map);
 
-      // Add start and end markers
-      const startIcon = L.divIcon({
-        className: 'trail-marker',
-        html: `<div style="width: 12px; height: 12px; background: #00bfff; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 10px #00bfff;"></div>`,
-        iconSize: [12, 12],
-        iconAnchor: [6, 6],
-      });
-
-      const endIcon = L.divIcon({
-        className: 'trail-marker',
-        html: `<div style="width: 16px; height: 16px; background: #00ff88; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 10px #00ff88;"></div>`,
-        iconSize: [16, 16],
-        iconAnchor: [8, 8],
-      });
-
-      L.marker(latLngs[0], { icon: startIcon }).addTo(map);
-      L.marker(latLngs[latLngs.length - 1], { icon: endIcon }).addTo(map);
-
+      trailMarkersRef.current = [startMarker, endMarker];
       polylineRef.current = polyline;
 
-      // Fit bounds to show entire trail
       map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
     }
   }, [trailData, isMapReady]);
+
+  // Handle geofences display
+  useEffect(() => {
+    if (!mapRef.current || !isMapReady) return;
+
+    const map = mapRef.current;
+    const existingLayers = geofenceLayersRef.current;
+    const currentIds = new Set(geofences.map(g => g.id));
+
+    // Remove old geofences
+    existingLayers.forEach((layer, id) => {
+      if (!currentIds.has(id)) {
+        layer.remove();
+        existingLayers.delete(id);
+      }
+    });
+
+    // Add or update geofences
+    geofences.forEach((geofence) => {
+      const existingLayer = existingLayers.get(geofence.id);
+      
+      if (existingLayer) {
+        existingLayer.remove();
+      }
+
+      if (geofence.isActive || selectedGeofenceId === geofence.id) {
+        const polygon = L.polygon(
+          geofence.coordinates.map(c => [c.lat, c.lng] as L.LatLngExpression),
+          {
+            color: geofence.color,
+            weight: selectedGeofenceId === geofence.id ? 3 : 2,
+            fillColor: geofence.color,
+            fillOpacity: selectedGeofenceId === geofence.id ? 0.3 : 0.15,
+            dashArray: geofence.isActive ? undefined : '5, 10',
+          }
+        ).addTo(map);
+
+        polygon.bindPopup(`
+          <div style="font-family: 'Rajdhani', sans-serif;">
+            <h3 style="font-family: 'Orbitron', sans-serif; font-weight: 600; margin: 0 0 8px 0; color: ${geofence.color};">
+              ${geofence.name}
+            </h3>
+            <p style="margin: 0; font-size: 12px; color: hsl(220, 15%, 55%);">
+              ${geofence.isActive ? '✅ Ativa' : '⏸️ Inativa'}
+            </p>
+          </div>
+        `);
+
+        existingLayers.set(geofence.id, polygon);
+
+        // Fly to selected geofence
+        if (selectedGeofenceId === geofence.id) {
+          map.fitBounds(polygon.getBounds(), { padding: [50, 50] });
+        }
+      }
+    });
+  }, [geofences, selectedGeofenceId, isMapReady]);
 
   return (
     <div 
