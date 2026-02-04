@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Analytics from "./pages/Analytics";
 import Billing from "./pages/Billing";
 import Settings from "./pages/Settings";
+import AdminUsers from "./pages/AdminUsers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,11 @@ const App = () => (
           <Route path="/billing" element={
             <AppLayout>
               <Billing />
+            </AppLayout>
+          } />
+          <Route path="/admin/users" element={
+            <AppLayout>
+              <AdminUsers />
             </AppLayout>
           } />
           <Route path="/settings" element={

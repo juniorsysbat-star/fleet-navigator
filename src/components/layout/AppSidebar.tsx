@@ -6,7 +6,8 @@ import {
   Settings, 
   Navigation,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -30,6 +31,12 @@ const navItems = [
     icon: CreditCard, 
     label: 'Financeiro', 
     description: 'Cobranças e clientes' 
+  },
+  { 
+    path: '/admin/users', 
+    icon: Users, 
+    label: 'Usuários', 
+    description: 'Gestão de clientes' 
   },
   { 
     path: '/settings', 
