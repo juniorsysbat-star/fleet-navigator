@@ -23,11 +23,40 @@ import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+ import { ReportPdfExport } from '@/components/reports/ReportPdfExport';
 
 const Billing = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'overdue'>('all');
 
+   // Dados para o relatório PDF
+   const reportData = {
+     title: 'Relatório Financeiro',
+     period: `${new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`,
+     summary: [
+       { label: 'Faturamento Mensal', value: `R$ ${BILLING_SUMMARY.totalRevenue.toLocaleString()}` },
+       { label: 'Projeção Próximo Mês', value: `R$ ${BILLING_SUMMARY.projectedRevenue.toLocaleString()}` },
+       { label: 'Total de Clientes', value: BILLING_SUMMARY.totalClients },
+       { label: 'Novos Clientes (Mês)', value: BILLING_SUMMARY.newClientsThisMonth },
+       { label: 'Taxa de Inadimplência', value: `${BILLING_SUMMARY.delinquencyRate.toFixed(1)}%` },
+       { label: 'Valor em Atraso', value: `R$ ${BILLING_SUMMARY.overdueAmount.toLocaleString()}` },
+     ],
+     tables: [
+       {
+         title: 'Lista de Clientes',
+         headers: ['Cliente', 'Plano', 'Veículos', 'Valor Mensal', 'Status', 'Último Pagamento'],
+         rows: MOCK_CLIENTS.map((client) => [
+           client.name,
+           client.plan.toUpperCase(),
+           client.vehicleCount,
+           `R$ ${client.monthlyValue.toFixed(2)}`,
+           client.status === 'active' ? 'Em dia' : 'Atrasado',
+           client.lastPayment.toLocaleDateString('pt-BR'),
+         ]),
+       },
+     ],
+   };
+ 
   const filteredClients = MOCK_CLIENTS.filter((client) => {
     const matchesSearch = 
       client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -78,6 +107,8 @@ const Billing = () => {
             <Plus className="w-4 h-4" />
             Novo Cliente
           </Button>
+           
+           <ReportPdfExport reportData={reportData} type="billing" />
         </div>
       </div>
 

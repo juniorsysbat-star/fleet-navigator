@@ -2,13 +2,27 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Vehicle, VehicleWithStatus } from '@/types/vehicle';
 import { API_CONFIG, getPositionsUrl } from '@/config/api';
 import { getAnimatedMockVehicles } from '@/data/mockVehicles';
+ import { generateDemoVehicles, animateDemoVehicles } from '@/data/mockDemoVehicles';
+ import { useAuth } from '@/contexts/AuthContext';
 
-export function useVehicles() {
+ export function useVehicles(forceDemoMode?: boolean) {
+   // Tenta usar o contexto de auth, mas fallback para false se não estiver disponível
+   let isDemoFromContext = false;
+   try {
+     const auth = useAuth();
+     isDemoFromContext = auth.isDemoMode;
+   } catch {
+     // Se não estiver dentro do AuthProvider, usa o parâmetro
+   }
+   
+   const isDemo = forceDemoMode ?? isDemoFromContext;
+   
   const [vehicles, setVehicles] = useState<VehicleWithStatus[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [isUsingMockData, setIsUsingMockData] = useState(false);
+   const demoVehiclesRef = useRef<Vehicle[]>([]);
   const retryCountRef = useRef(0);
   const maxRetries = 2;
 
@@ -29,6 +43,21 @@ export function useVehicles() {
   };
 
   const fetchVehicles = useCallback(async () => {
+     // Modo demonstração: 50 veículos pelo Brasil
+     if (isDemo) {
+       if (demoVehiclesRef.current.length === 0) {
+         demoVehiclesRef.current = generateDemoVehicles();
+       } else {
+         demoVehiclesRef.current = animateDemoVehicles(demoVehiclesRef.current);
+       }
+       setVehicles(processVehicles(demoVehiclesRef.current, true));
+       setLastUpdate(new Date());
+       setIsUsingMockData(true);
+       setIsLoading(false);
+       setError(null);
+       return;
+     }
+ 
     // Se forçar dados mockados, use-os diretamente
     if (API_CONFIG.FORCE_MOCK_DATA) {
       const mockData = getAnimatedMockVehicles();
@@ -81,7 +110,7 @@ export function useVehicles() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+   }, [isDemo]);
 
   useEffect(() => {
     fetchVehicles();
@@ -102,6 +131,7 @@ export function useVehicles() {
     movingCount,
     stoppedCount,
     isUsingMockData,
+     isDemoMode: isDemo,
     refetch: fetchVehicles,
   };
 }
