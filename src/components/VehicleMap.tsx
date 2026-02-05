@@ -11,6 +11,10 @@ import { createVehicleIcon } from './map/vehicleIcons';
 import { useGeofenceDrawing, DrawingMode, GeofenceDrawResult } from '@/hooks/useGeofenceDrawing';
 import 'leaflet/dist/leaflet.css';
 
+// Sidebar width + Detail panel width for smart pan offset calculation
+const SIDEBAR_WIDTH = 300; // Left sidebar
+const DETAIL_PANEL_WIDTH = 360; // Right detail panel
+
 // Fix default marker icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -77,6 +81,34 @@ export function VehicleMap({
   const [isMapReady, setIsMapReady] = useState(false);
   const [isTrafficEnabled, setIsTrafficEnabled] = useState(false);
   const [shouldFollowVehicle, setShouldFollowVehicle] = useState(false);
+
+  // Smart pan: calculates the offset to center vehicle in the visible map area
+  const getSmartPanOffset = useCallback((): [number, number] => {
+    if (!mapContainerRef.current) return [0, 0];
+    
+    const mapWidth = mapContainerRef.current.offsetWidth;
+    // Visible area = total width - sidebar - detail panel
+    const visibleWidth = mapWidth - SIDEBAR_WIDTH - DETAIL_PANEL_WIDTH;
+    // Center of visible area relative to map center
+    const offsetX = (SIDEBAR_WIDTH - DETAIL_PANEL_WIDTH) / 2;
+    
+    return [offsetX, 0];
+  }, []);
+
+  // Smart fly to: centers vehicle in visible map area accounting for panels
+  const smartFlyTo = useCallback((lat: number, lng: number, zoom: number = 16) => {
+    if (!mapRef.current || !isMapReady) return;
+    
+    const map = mapRef.current;
+    const [offsetX, offsetY] = getSmartPanOffset();
+    
+    // Convert offset from pixels to map coordinates
+    const targetPoint = map.project([lat, lng], zoom);
+    const offsetPoint = L.point(targetPoint.x - offsetX, targetPoint.y - offsetY);
+    const offsetLatLng = map.unproject(offsetPoint, zoom);
+    
+    map.flyTo(offsetLatLng, zoom, { duration: 0.6 });
+  }, [isMapReady, getSmartPanOffset]);
 
   // Toggle traffic layer
   const handleToggleTraffic = useCallback(() => {
@@ -372,16 +404,25 @@ export function VehicleMap({
 
   // Selected vehicle changes: do NOT move the camera automatically.
   // Only open the popup and reset follow state.
+  // UPDATED: Now centers vehicle with smart pan offset
   useEffect(() => {
-    setShouldFollowVehicle(false);
-
     if (!mapRef.current || !selectedVehicleId || !isMapReady) return;
 
     const marker = markersRef.current.get(selectedVehicleId);
+    const selectedVehicle = vehicles.find(v => v.device_id === selectedVehicleId);
+    
     if (marker) {
       marker.openPopup();
     }
-  }, [selectedVehicleId, isMapReady]);
+    
+    // Smart pan to center vehicle in visible area
+    if (selectedVehicle) {
+      smartFlyTo(selectedVehicle.latitude, selectedVehicle.longitude, 16);
+    }
+    
+    // Reset follow state after initial centering
+    setShouldFollowVehicle(false);
+  }, [selectedVehicleId, isMapReady, vehicles, smartFlyTo]);
 
   // Vehicle follow controller: ONLY move the camera when shouldFollowVehicle === true
   useEffect(() => {
@@ -391,12 +432,8 @@ export function VehicleMap({
     const selectedVehicle = vehicles.find(v => v.device_id === selectedVehicleId);
     if (!selectedVehicle) return;
 
-    mapRef.current.flyTo(
-      [selectedVehicle.latitude, selectedVehicle.longitude],
-      16,
-      { duration: 0.8 }
-    );
-  }, [selectedVehicleId, vehicles, shouldFollowVehicle, isMapReady]);
+    smartFlyTo(selectedVehicle.latitude, selectedVehicle.longitude, 16);
+  }, [selectedVehicleId, vehicles, shouldFollowVehicle, isMapReady, smartFlyTo]);
 
   // Handle trail polyline
   useEffect(() => {
