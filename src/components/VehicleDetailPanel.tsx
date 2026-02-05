@@ -11,12 +11,15 @@ import {
   Car,
   Navigation,
   Rocket,
-  Minus
+  Minus,
+  Pencil
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useState } from 'react';
+import { DeviceModal, DeviceFormData } from '@/components/admin/DeviceModal';
 
 interface VehicleDetailPanelProps {
   vehicle: VehicleWithStatus | null;
@@ -25,6 +28,7 @@ interface VehicleDetailPanelProps {
   isTrailVisible: boolean;
   onOpenMissionPlanner: () => void;
   onMinimize?: () => void;
+  onVehicleUpdate?: (device: DeviceFormData) => void;
 }
 
 export function VehicleDetailPanel({ 
@@ -34,7 +38,10 @@ export function VehicleDetailPanel({
   isTrailVisible,
   onOpenMissionPlanner,
   onMinimize,
+  onVehicleUpdate,
 }: VehicleDetailPanelProps) {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
   if (!vehicle) return null;
 
   const handleBlockVehicle = () => {
@@ -63,8 +70,35 @@ export function VehicleDetailPanel({
   const batteryLevel = vehicle.batteryLevel ?? Math.floor(Math.random() * 40) + 60;
   const ignitionStatus = vehicle.ignition ?? vehicle.speed > 0;
 
+  // Convert vehicle to DeviceFormData for editing
+  const vehicleToFormData = (): DeviceFormData => ({
+    id: vehicle.device_id,
+    name: vehicle.device_name,
+    plate: vehicle.device_name,
+    imei: vehicle.device_id,
+    model: '',
+    manufacturerId: '',
+    modelId: '',
+    port: 5023,
+    simPhone: '',
+    vehicleType: vehicle.vehicleType || 'sedan',
+    iconColor: vehicle.iconColor || 'status',
+    ipvaExpiry: vehicle.documentation?.ipvaExpiry,
+    insuranceExpiry: vehicle.documentation?.insuranceExpiry,
+    licensingExpiry: vehicle.documentation?.licensingExpiry,
+    trailers: vehicle.documentation?.trailers,
+  });
+
+  const handleSaveVehicle = (device: DeviceFormData) => {
+    if (onVehicleUpdate) {
+      onVehicleUpdate(device);
+    }
+    setIsEditModalOpen(false);
+  };
+
   return (
-    <div className="w-96 h-full bg-sidebar border-l border-sidebar-border flex flex-col animate-in slide-in-from-right duration-300">
+    <>
+      <div className="w-96 h-full bg-sidebar border-l border-sidebar-border flex flex-col animate-in slide-in-from-right duration-300">
       {/* Header */}
       <div className="p-4 border-b border-sidebar-border">
         <div className="flex items-center justify-between mb-3">
@@ -103,6 +137,17 @@ export function VehicleDetailPanel({
             </button>
           </div>
         </div>
+        
+        {/* Edit Vehicle Button */}
+        <Button
+          onClick={() => setIsEditModalOpen(true)}
+          variant="outline"
+          size="sm"
+          className="w-full gap-2 text-xs border-accent/30 text-accent hover:bg-accent/10"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+          Editar Veículo
+        </Button>
       </div>
 
       {/* Content */}
@@ -274,6 +319,15 @@ export function VehicleDetailPanel({
           ⚠️ Ação irreversível - Use com cautela
         </p>
       </div>
-    </div>
+      </div>
+
+      {/* Edit Vehicle Modal */}
+      <DeviceModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSave={handleSaveVehicle}
+        editDevice={vehicleToFormData()}
+      />
+    </>
   );
 }
