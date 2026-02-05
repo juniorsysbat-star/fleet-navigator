@@ -110,7 +110,7 @@ async function fetchWithTimeout<T>(
 
   const fetchOptions: RequestInit = {
     ...options,
-    credentials: "include", // CRÍTICO para Traccar
+    credentials: "include", // Importante para cookies do Traccar
     signal: controller.signal,
     headers: { ...getHeaders(), ...options.headers },
   };
@@ -179,8 +179,9 @@ export async function apiLogout() {
 }
 
 // ============================================
-// VEÍCULOS (LEITURA)
+// VEÍCULOS & POSIÇÕES
 // ============================================
+
 export async function fetchVehiclesFromApi(): Promise<NormalizedVehicle[]> {
   try {
     const [devices, positions] = await Promise.all([
@@ -216,32 +217,28 @@ export async function fetchVehiclesFromApi(): Promise<NormalizedVehicle[]> {
 }
 
 // ============================================
-// VEÍCULOS (ESCRITA - CRUD)
+// CRUD DE DISPOSITIVOS (NOVO)
 // ============================================
 
-export async function createVehicle(data: { name: string; uniqueId: string }): Promise<any> {
+export async function createVehicle(data: { name: string; uniqueId: string }) {
   try {
-    const newDevice = await fetchWithTimeout(buildUrl(API_CONFIG.ENDPOINTS.VEHICLES), {
+    return await fetchWithTimeout(buildUrl(API_CONFIG.ENDPOINTS.VEHICLES), {
       method: "POST",
-      body: JSON.stringify({
-        name: data.name,
-        uniqueId: data.uniqueId,
-      }),
+      body: JSON.stringify(data),
     });
-    return newDevice;
   } catch (error) {
     console.error("Erro ao criar veículo:", error);
     throw error;
   }
 }
 
-export async function updateVehicleApi(id: number, data: Partial<{ name: string; uniqueId: string }>): Promise<any> {
+export async function updateVehicle(id: string, data: Partial<TraccarDevice>) {
   try {
+    // Traccar exige o ID na URL e no corpo
     const url = `${buildUrl(API_CONFIG.ENDPOINTS.VEHICLES)}/${id}`;
-    // O Traccar exige o ID dentro do corpo também em alguns updates
     return await fetchWithTimeout(url, {
       method: "PUT",
-      body: JSON.stringify({ id, ...data }),
+      body: JSON.stringify(data),
     });
   } catch (error) {
     console.error("Erro ao atualizar veículo:", error);
@@ -249,7 +246,7 @@ export async function updateVehicleApi(id: number, data: Partial<{ name: string;
   }
 }
 
-export async function deleteVehicleApi(id: string): Promise<void> {
+export async function deleteVehicle(id: string) {
   try {
     const url = `${buildUrl(API_CONFIG.ENDPOINTS.VEHICLES)}/${id}`;
     await fetchWithTimeout(url, {
@@ -261,6 +258,9 @@ export async function deleteVehicleApi(id: string): Promise<void> {
   }
 }
 
+// ============================================
+// HEALTH CHECK
+// ============================================
 export async function checkApiHealth(): Promise<boolean> {
   try {
     const controller = new AbortController();
