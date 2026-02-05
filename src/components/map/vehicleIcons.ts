@@ -21,8 +21,7 @@
  // Status color definitions
  const STATUS_COLORS = {
   moving: { main: '#10b981', glow: 'rgba(16, 185, 129, 0.5)' },   // Emerald: Moving
-  idle: { main: '#eab308', glow: 'rgba(234, 179, 8, 0.5)' },      // Yellow: Stopped
-  'idle-off': { main: '#fcd34d', glow: 'rgba(252, 211, 77, 0.4)' }, // Amber-300: Stopped (ignition off)
+ idle: { main: '#10b981', glow: 'rgba(16, 185, 129, 0.5)' },      // Emerald: Online (stopped) - same as moving in triad
   offline: { main: '#9ca3af', glow: 'rgba(156, 163, 175, 0.3)' }, // Gray-400: Offline
   unknown: { main: '#9ca3af', glow: 'rgba(156, 163, 175, 0.3)' }, // Gray-400: Unknown
   speeding: { main: '#ef4444', glow: 'rgba(239, 68, 68, 0.8)' },  // Red: Alarm/Block
@@ -30,7 +29,7 @@
  
  // Create custom marker icon with vehicle type and optional custom color
  export const createVehicleIcon = (
-  status: 'moving' | 'idle' | 'idle-off' | 'offline' | 'unknown' | 'speeding',
+ status: 'moving' | 'idle' | 'offline' | 'unknown' | 'speeding',
    vehicleType: VehicleType | string = 'sedan',
    customColor?: string
  ): L.DivIcon => {
