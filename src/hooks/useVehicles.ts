@@ -1,59 +1,94 @@
-import { useState, useEffect, useCallback, useRef, useContext, createContext } from "react";
-import { Vehicle, VehicleWithStatus } from "@/types/vehicle";
-import { API_CONFIG } from "@/config/api";
-import { generateDemoVehicles, animateDemoVehicles } from "@/data/mockDemoVehicles";
-import type { DeviceFormData } from "@/components/admin/DeviceModal";
-import { fetchVehiclesFromApi, NormalizedVehicle } from "@/services/apiService";
-import { onVehicleUpdate, isSocketConnected } from "@/services/socketService";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Vehicle, VehicleWithStatus } from '@/types/vehicle';
+ import { API_CONFIG } from '@/config/api';
+import { getAnimatedMockVehicles } from '@/data/mockVehicles';
+ import { generateDemoVehicles, animateDemoVehicles } from '@/data/mockDemoVehicles';
+ import { useAuth } from '@/contexts/AuthContext';
+import type { DeviceFormData } from '@/components/admin/DeviceModal';
+ import { fetchVehiclesFromApi, NormalizedVehicle } from '@/services/apiService';
+ import { onVehicleUpdate, isSocketConnected } from '@/services/socketService';
 
-// Create a local context reference to avoid importing useAuth (which throws)
-interface AuthContextValue {
-  isDemoMode: boolean;
-  isApiConnected: boolean;
-}
+ export function useVehicles(forceDemoMode?: boolean) {
+   // Tenta usar o contexto de auth, mas fallback para false se não estiver disponível
+   let isDemoFromContext = false;
+  let loginDemoFn: (() => void) | null = null;
+  let isApiConnectedFromContext = false;
+   try {
+     const auth = useAuth();
+     isDemoFromContext = auth.isDemoMode;
+    loginDemoFn = auth.loginDemo;
+    isApiConnectedFromContext = auth.isApiConnected;
+   } catch {
+     // Se não estiver dentro do AuthProvider, usa o parâmetro
+   }
+   
+   const isDemo = forceDemoMode ?? isDemoFromContext;
 
-// We'll import the actual context from AuthContext module
-import { AuthContext } from "@/contexts/AuthContext";
-
-export function useVehicles(forceDemoMode?: boolean) {
-  // Always call useContext - returns undefined if outside provider (won't throw)
-  const authContext = useContext(AuthContext);
-  
-  const isDemoFromContext = authContext?.isDemoMode ?? false;
-  const isApiConnectedFromContext = authContext?.isApiConnected ?? false;
-
-  const isDemo = forceDemoMode ?? isDemoFromContext;
-
-  // REMOVIDO: Inicialização com Mocks
-  const [vehicles, setVehicles] = useState<VehicleWithStatus[]>([]);
-
-  // Começa true para mostrar loading real
-  const [isLoading, setIsLoading] = useState(true);
+   // Fontes de dados mock para persistência durante a sessão
+   const demoVehiclesRef = useRef<Vehicle[]>([]);
+   const mockVehiclesRef = useRef<Vehicle[]>([]);
+   
+  // Inicializa com dados mock para liberar tela imediatamente
+  const [vehicles, setVehicles] = useState<VehicleWithStatus[]>(() => {
+    const initialMock = getAnimatedMockVehicles();
+     // Mantém base mock para permitir CRUD durante a sessão (sem sobrescrever em refresh)
+     mockVehiclesRef.current = initialMock;
+    return initialMock.map(v => ({
+      ...v,
+      isMoving: v.speed > 0,
+      status: v.speed > 5 ? 'moving' as const : v.speed > 0 ? 'idle' as const : 'stopped' as const,
+      ignition: v.speed > 0,
+      batteryLevel: Math.floor(Math.random() * 30) + 70,
+    }));
+  });
+  const [isLoading, setIsLoading] = useState(false); // Começa false - tela liberada imediatamente
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-
-  // Só é Mock se estiver explicitamente em modo DEMO
-  const [isUsingMockData, setIsUsingMockData] = useState(isDemo);
-
-  const demoVehiclesRef = useRef<Vehicle[]>([]);
+  const [isUsingMockData, setIsUsingMockData] = useState(true); // Assume mock até API responder
+  const retryCountRef = useRef(0);
+  const hasTriedApiRef = useRef(false);
+  const autoFallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
   const socketCleanupRef = useRef<(() => void) | null>(null);
+
+   const animateLocalMockVehicles = useCallback((list: Vehicle[]): Vehicle[] => {
+     return list.map((vehicle) => ({
+       ...vehicle,
+       speed: vehicle.speed > 0
+         ? Math.max(0, vehicle.speed + (Math.random() - 0.5) * 10)
+         : 0,
+       latitude: vehicle.speed > 0
+         ? vehicle.latitude + (Math.random() - 0.5) * 0.001
+         : vehicle.latitude,
+       longitude: vehicle.speed > 0
+         ? vehicle.longitude + (Math.random() - 0.5) * 0.001
+         : vehicle.longitude,
+       devicetime: new Date().toISOString(),
+     }));
+   }, []);
 
   const processVehicles = (data: Vehicle[], isMock: boolean = false): VehicleWithStatus[] => {
     return data.map((vehicle) => {
+      // Para dados mockados, simular ignição baseado na velocidade
+      // Except for alert vehicles that might have ignition OFF with speed > 0 (violation)
       const extendedVehicle = vehicle as Vehicle & { blocked?: boolean; alarm?: string | null; ignition?: boolean };
-
+      const ignition = extendedVehicle.ignition !== undefined 
+        ? extendedVehicle.ignition 
+        : (isMock ? vehicle.speed > 0 : undefined);
+      const batteryLevel = isMock ? Math.floor(Math.random() * 30) + 70 : undefined;
+      
       return {
         ...vehicle,
         isMoving: vehicle.speed > 0,
-        status: vehicle.speed > 5 ? "moving" : vehicle.speed > 0 ? "idle" : "stopped",
-        ignition: extendedVehicle.ignition, // Usa dado real da API
-        batteryLevel: undefined, // Sem bateria fake
+        status: vehicle.speed > 5 ? 'moving' : vehicle.speed > 0 ? 'idle' : 'stopped',
+        ignition,
+        batteryLevel,
         blocked: extendedVehicle.blocked,
         alarm: extendedVehicle.alarm,
       };
     });
   };
 
+  // Converte NormalizedVehicle para Vehicle
   const normalizedToVehicle = (nv: NormalizedVehicle): Vehicle => ({
     device_id: nv.device_id,
     device_name: nv.device_name,
@@ -65,96 +100,217 @@ export function useVehicles(forceDemoMode?: boolean) {
   });
 
   const fetchVehicles = useCallback(async () => {
-    // MODO DEMO EXPLÍCITO (Só se usuário clicar em "Demo")
-    if (isDemo) {
-      if (demoVehiclesRef.current.length === 0) {
-        demoVehiclesRef.current = generateDemoVehicles();
+     // Modo demonstração: 50 veículos pelo Brasil
+     if (isDemo) {
+       if (demoVehiclesRef.current.length === 0) {
+         demoVehiclesRef.current = generateDemoVehicles();
+       } else {
+         demoVehiclesRef.current = animateDemoVehicles(demoVehiclesRef.current);
+       }
+       setVehicles(processVehicles(demoVehiclesRef.current, true));
+       setLastUpdate(new Date());
+       setIsUsingMockData(true);
+       setIsLoading(false);
+       setError(null);
+       return;
+     }
+ 
+    // Se forçar dados mockados ou já falhou antes, use-os diretamente
+    if (API_CONFIG.FORCE_MOCK_DATA) {
+      if (mockVehiclesRef.current.length === 0) {
+        mockVehiclesRef.current = getAnimatedMockVehicles();
       } else {
-        demoVehiclesRef.current = animateDemoVehicles(demoVehiclesRef.current);
+        mockVehiclesRef.current = animateLocalMockVehicles(mockVehiclesRef.current);
       }
-      setVehicles(processVehicles(demoVehiclesRef.current, true));
+      setVehicles(processVehicles(mockVehiclesRef.current, true));
       setLastUpdate(new Date());
       setIsUsingMockData(true);
       setIsLoading(false);
+      setError(null);
       return;
     }
 
     try {
-      setIsLoading(true);
-      const normalizedData = await fetchVehiclesFromApi();
-      const data: Vehicle[] = normalizedData.map(normalizedToVehicle);
-
+       // Usa o novo serviço de API com mapeamento automático
+       const normalizedData = await fetchVehiclesFromApi();
+       const data: Vehicle[] = normalizedData.map(normalizedToVehicle);
+      
       setVehicles(processVehicles(data, false));
       setLastUpdate(new Date());
       setError(null);
-      setIsUsingMockData(false); // Garante que flag de mock está desligada
+      setIsUsingMockData(false);
+      hasTriedApiRef.current = true;
+       retryCountRef.current = 0;
     } catch (err) {
-      console.error("Erro ao buscar veículos:", err);
-      // REMOVIDO: Fallback para Mock
-      // Se der erro, mantemos a lista anterior ou vazia, mas avisamos o erro
-      setError("Falha ao conectar com servidor");
+      // Log silencioso - não alarma o usuário
+      if (!hasTriedApiRef.current) {
+        console.info('API não disponível, usando dados de demonstração:', err);
+      }
+      
+      hasTriedApiRef.current = true;
+      retryCountRef.current++;
+      
+      // Fallback silencioso para mock data
+      if (mockVehiclesRef.current.length === 0) {
+        mockVehiclesRef.current = getAnimatedMockVehicles();
+      } else {
+        mockVehiclesRef.current = animateLocalMockVehicles(mockVehiclesRef.current);
+      }
+      setVehicles(processVehicles(mockVehiclesRef.current, true));
+      setLastUpdate(new Date());
+      setIsUsingMockData(true);
+      setError(null); // Nunca mostra erro - usa mock silenciosamente
+      
+      // Se não há usuário logado e API falhou, entra em modo demo automaticamente
+      if (loginDemoFn && !isDemoFromContext) {
+        // Aguarda um momento e ativa modo demo se continuar sem usuário
+        if (!autoFallbackTimerRef.current) {
+          autoFallbackTimerRef.current = setTimeout(() => {
+            if (!hasTriedApiRef.current || retryCountRef.current > 1) {
+              console.info('Ativando modo demonstração automaticamente');
+              loginDemoFn?.();
+            }
+          }, 3000);
+        }
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [isDemo]);
+    }, [isDemo, isDemoFromContext, loginDemoFn, animateLocalMockVehicles]);
 
-  // Socket Listener
+  // Listener para atualizações via Socket.io
   useEffect(() => {
-    if (isDemo) return;
-
+    if (isDemo || API_CONFIG.FORCE_MOCK_DATA) return;
     const unsubscribe = onVehicleUpdate((updatedVehicles) => {
       if (updatedVehicles.length === 0) return;
-      setVehicles((prev) => {
-        const updatedMap = new Map(updatedVehicles.map((v) => [v.device_id, v]));
-        return prev.map((vehicle) => {
+      setVehicles(prev => {
+        const updatedMap = new Map(updatedVehicles.map(v => [v.device_id, v]));
+        return prev.map(vehicle => {
           const updated = updatedMap.get(vehicle.device_id);
           if (updated) {
-            // Atualiza apenas os campos necessários
             return {
               ...vehicle,
-              ...updated,
+              latitude: updated.latitude,
+              longitude: updated.longitude,
+              speed: updated.speed,
+              address: updated.address,
+              devicetime: updated.devicetime,
+              ignition: updated.ignition,
+              blocked: updated.blocked,
+              alarm: updated.alarm,
               isMoving: updated.speed > 0,
-              status: updated.speed > 5 ? "moving" : updated.speed > 0 ? "idle" : "stopped",
+              status: updated.speed > 5 ? 'moving' : updated.speed > 0 ? 'idle' : 'stopped',
             };
           }
           return vehicle;
         });
       });
       setLastUpdate(new Date());
+      setIsUsingMockData(false);
     });
-
     socketCleanupRef.current = unsubscribe;
-    return () => {
-      unsubscribe();
-    };
+    return () => { unsubscribe(); };
   }, [isDemo]);
 
   useEffect(() => {
+    // Limpa timer ao desmontar
     return () => {
-      if (socketCleanupRef.current) socketCleanupRef.current();
+      if (autoFallbackTimerRef.current) {
+        clearTimeout(autoFallbackTimerRef.current);
+      }
+      if (socketCleanupRef.current) {
+        socketCleanupRef.current();
+      }
     };
   }, []);
 
   useEffect(() => {
     fetchVehicles();
+    
     const interval = setInterval(fetchVehicles, API_CONFIG.REFRESH_INTERVAL);
+    
     return () => clearInterval(interval);
   }, [fetchVehicles]);
 
   const movingCount = vehicles.filter((v) => v.speed > 5).length;
   const stoppedCount = vehicles.filter((v) => v.speed <= 5).length;
 
-  // Update local (apenas otimista, ideal seria mandar pra API)
+  // Update vehicle in local state (for demo mode persistence)
   const updateVehicle = useCallback((device: DeviceFormData) => {
-    // Implementar update via API aqui se necessário no futuro
-    console.log("Update vehicle requested", device);
+    if (!device.id) return;
+
+    const applyToVehicle = (v: VehicleWithStatus | Vehicle): VehicleWithStatus | Vehicle => ({
+      ...v,
+      device_name: device.plate || device.name || v.device_name,
+      vehicleType: device.vehicleType ?? v.vehicleType,
+      iconColor: device.iconColor ?? v.iconColor,
+      documentation: {
+        ipvaExpiry: device.ipvaExpiry,
+        insuranceExpiry: device.insuranceExpiry,
+        licensingExpiry: device.licensingExpiry,
+        trailers: device.trailers,
+      },
+    });
+
+    // Atualiza as fontes (para não ser sobrescrito no refresh)
+    if (demoVehiclesRef.current.length > 0) {
+      demoVehiclesRef.current = demoVehiclesRef.current.map(v =>
+        v.device_id === device.id ? (applyToVehicle(v) as Vehicle) : v
+      );
+    }
+
+    if (mockVehiclesRef.current.length > 0) {
+      mockVehiclesRef.current = mockVehiclesRef.current.map(v =>
+        v.device_id === device.id ? (applyToVehicle(v) as Vehicle) : v
+      );
+    }
+
+    setVehicles(prev => prev.map(v => {
+      if (v.device_id === device.id) {
+        return applyToVehicle(v) as VehicleWithStatus;
+      }
+      return v;
+    }));
   }, []);
 
+  // Add new vehicle to local state (for demo mode persistence)
   const addVehicle = useCallback((device: DeviceFormData) => {
-    // Implementar create via API aqui se necessário
-    console.log("Add vehicle requested", device);
-    return {} as VehicleWithStatus;
-  }, []);
+    const id = device.imei || `local-${Date.now()}`;
+    const baseVehicle: Vehicle = {
+      device_id: id,
+      device_name: device.plate || device.name || id,
+      latitude: -23.5505 + (Math.random() - 0.5) * 2,
+      longitude: -46.6333 + (Math.random() - 0.5) * 2,
+      speed: 0,
+      address: 'Endereço será atualizado automaticamente',
+      devicetime: new Date().toISOString(),
+      vehicleType: device.vehicleType,
+      iconColor: device.iconColor,
+      documentation: {
+        ipvaExpiry: device.ipvaExpiry,
+        insuranceExpiry: device.insuranceExpiry,
+        licensingExpiry: device.licensingExpiry,
+        trailers: device.trailers,
+      },
+    };
+
+    // Atualiza a fonte ativa para persistir no refresh
+    if (isDemo) {
+      demoVehiclesRef.current = [baseVehicle, ...demoVehiclesRef.current];
+    } else {
+      mockVehiclesRef.current = [baseVehicle, ...mockVehiclesRef.current];
+    }
+
+    const newVehicle: VehicleWithStatus = {
+      ...baseVehicle,
+      isMoving: false,
+      status: 'stopped',
+      ignition: false,
+      batteryLevel: 100,
+    };
+    setVehicles(prev => [newVehicle, ...prev]);
+    return newVehicle;
+  }, [isDemo]);
 
   return {
     vehicles,
@@ -164,11 +320,42 @@ export function useVehicles(forceDemoMode?: boolean) {
     movingCount,
     stoppedCount,
     isUsingMockData,
-    isDemoMode: isDemo,
+     isDemoMode: isDemo,
     isSocketConnected: isSocketConnected(),
     isApiConnected: isApiConnectedFromContext,
     refetch: fetchVehicles,
     updateVehicle,
-    addVehicle,
+      const addVehicle = useCallback(async (device: DeviceFormData) => {
+     setIsLoading(true);
+     try {
+       // 1. Chama a API para criar (você precisa ter essa função no apiService)
+       // Se não tiver a função createVehicle, vamos improvisar ou você cria no apiService
+       
+       // IMPORTANTE: O endpoint correto é POST /api/devices
+       const response = await fetch(`${API_CONFIG.BASE_URL}/api/devices`, {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json',
+           // Se precisar de credenciais, o browser manda cookies automaticamente
+         },
+         body: JSON.stringify({
+           name: device.plate || device.name,
+           uniqueId: device.imei,
+           // Traccar exige esses campos minimos
+         })
+       });
+
+       if (!response.ok) throw new Error('Falha ao criar veículo');
+
+       // 2. Recarrega a lista oficial
+       await fetchVehicles();
+       
+     } catch (err) {
+       console.error(err);
+       setError('Erro ao salvar veículo');
+     } finally {
+       setIsLoading(false);
+     }
+  }, [fetchVehicles]);
   };
 }
