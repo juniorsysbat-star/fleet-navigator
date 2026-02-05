@@ -12,17 +12,15 @@ interface LoginCredentials {
 interface LoginResponse {
   success: boolean;
   user?: {
-    id: number; // Traccar usa IDs numéricos
+    id: number;
     name: string;
     email: string;
     administrator: boolean;
-    // Outros campos do Traccar...
   };
   message?: string;
   token?: string;
 }
 
-// Estrutura Real do Traccar (/api/devices)
 interface TraccarDevice {
   id: number;
   name: string;
@@ -39,7 +37,6 @@ interface TraccarDevice {
   attributes: Record<string, any>;
 }
 
-// Estrutura Real do Traccar (/api/positions)
 interface TraccarPosition {
   id: number;
   deviceId: number;
@@ -52,7 +49,7 @@ interface TraccarPosition {
   latitude: number;
   longitude: number;
   altitude: number;
-  speed: number; // Nós = Knots
+  speed: number;
   course: number;
   address: string;
   attributes: {
@@ -63,7 +60,6 @@ interface TraccarPosition {
   };
 }
 
-// Estrutura normalizada para o frontend
 export interface NormalizedVehicle {
   device_id: string;
   device_name: string;
@@ -78,12 +74,9 @@ export interface NormalizedVehicle {
   status?: string;
 }
 
-// O Traccar usa Cookies, não Token Bearer. Mas mantemos compatibilidade local.
 let authToken: string | null = localStorage.getItem("datafleet_token");
 
 export const setAuthToken = (token: string | null) => {
-  // No Traccar oficial, o "token" é o cookie de sessão gerado automaticamente pelo navegador.
-  // Mantemos essa função apenas para lógica interna do frontend se necessário.
   authToken = token;
   if (token) {
     localStorage.setItem("datafleet_token", token);
@@ -94,8 +87,6 @@ export const setAuthToken = (token: string | null) => {
 
 export const getAuthToken = () => authToken;
 
-// Headers padrão
-// O Traccar precisa de credentials: 'include' no fetch para enviar cookies
 const getHeaders = (isFormUrlEncoded = false): HeadersInit => {
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -106,14 +97,9 @@ const getHeaders = (isFormUrlEncoded = false): HeadersInit => {
   } else {
     headers["Content-Type"] = "application/json";
   }
-
-  // Se estivéssemos usando token no header (versões antigas ou proxy):
-  // if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-
   return headers;
 };
 
-// Função genérica de fetch com timeout
 async function fetchWithTimeout<T>(
   url: string,
   options: RequestInit = {},
@@ -122,10 +108,9 @@ async function fetchWithTimeout<T>(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-  // IMPORTANTE: credentials: 'include' permite enviar/receber cookies do Traccar
   const fetchOptions: RequestInit = {
     ...options,
-    credentials: "include",
+    credentials: "include", // CRÍTICO para Traccar
     signal: controller.signal,
     headers: { ...getHeaders(), ...options.headers },
   };
@@ -135,7 +120,6 @@ async function fetchWithTimeout<T>(
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      // Tenta ler erro do corpo se existir
       let errorMsg = `HTTP ${response.status}: ${response.statusText}`;
       try {
         const errorBody = await response.text();
@@ -144,7 +128,6 @@ async function fetchWithTimeout<T>(
       throw new Error(errorMsg);
     }
 
-    // Se for resposta vazia (logout as vezes retorna 204 No Content)
     if (response.status === 204) {
       return {} as T;
     }
@@ -156,29 +139,23 @@ async function fetchWithTimeout<T>(
 }
 
 // ============================================
-// AUTENTICAÇÃO (Traccar Nativo)
+// AUTENTICAÇÃO
 // ============================================
 export async function apiLogin(credentials: LoginCredentials): Promise<LoginResponse> {
   try {
-    // 1. Converter JSON para URLSearchParams (Form Data)
     const formData = new URLSearchParams();
     formData.append("email", credentials.email);
     formData.append("password", credentials.password);
 
-    // 2. Fazer POST com form-urlencoded
     const user = await fetchWithTimeout<any>(buildUrl(API_CONFIG.ENDPOINTS.LOGIN), {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: formData.toString(),
     });
 
-    // Se chegou aqui, login deu certo e cookie foi setado
-    // O Traccar retorna o objeto do usuário logado
     return {
       success: true,
       user: user,
-      // Usamos o email como "token" fake só para persistir estado local
-      // O verdadeiro auth é o cookie
       token: btoa(credentials.email),
     };
   } catch (error) {
@@ -192,7 +169,6 @@ export async function apiLogin(credentials: LoginCredentials): Promise<LoginResp
 
 export async function apiLogout() {
   try {
-    // O endpoint de logout é DELETE /api/session
     await fetchWithTimeout(buildUrl(API_CONFIG.ENDPOINTS.LOGIN), {
       method: "DELETE",
     });
@@ -203,28 +179,20 @@ export async function apiLogout() {
 }
 
 // ============================================
-// VEÍCULOS & POSIÇÕES (Merge de /devices e /positions)
+// VEÍCULOS (LEITURA)
 // ============================================
-
 export async function fetchVehiclesFromApi(): Promise<NormalizedVehicle[]> {
   try {
-    // No Traccar, para ter dados completos, precisamos de Devices (nomes) + Positions (lat/lon)
-    // Fazemos em paralelo para ser rápido
     const [devices, positions] = await Promise.all([
       fetchWithTimeout<TraccarDevice[]>(buildUrl(API_CONFIG.ENDPOINTS.VEHICLES)),
       fetchWithTimeout<TraccarPosition[]>(buildUrl(API_CONFIG.ENDPOINTS.POSITIONS)),
     ]);
 
-    // Criar mapa de posições para acesso rápido
     const posMap = new Map<number, TraccarPosition>();
     positions.forEach((p) => posMap.set(p.deviceId, p));
 
-    // Combinar dados
     return devices.map((device) => {
       const pos = posMap.get(device.id);
-
-      // Converter velocidade de Knots (Nós) para km/h se necessário
-      // Traccar geralmente retorna em Nós. 1 Nó = 1.852 km/h
       const speedKmh = pos ? pos.speed * 1.852 : 0;
 
       return {
@@ -232,13 +200,13 @@ export async function fetchVehiclesFromApi(): Promise<NormalizedVehicle[]> {
         device_name: device.name,
         latitude: pos?.latitude || 0,
         longitude: pos?.longitude || 0,
-        speed: Math.round(speedKmh), // Arredondar
+        speed: Math.round(speedKmh),
         address: pos?.address || "",
         devicetime: pos?.deviceTime || device.lastUpdate || new Date().toISOString(),
         ignition: pos?.attributes?.ignition ?? false,
-        blocked: pos?.attributes?.blocked ?? false, // Pode variar dependendo do rastreador
+        blocked: pos?.attributes?.blocked ?? false,
         alarm: pos?.attributes?.alarm ?? null,
-        status: device.status, // 'online', 'offline', 'unknown'
+        status: device.status,
       };
     });
   } catch (error) {
@@ -248,20 +216,60 @@ export async function fetchVehiclesFromApi(): Promise<NormalizedVehicle[]> {
 }
 
 // ============================================
-// HEALTH CHECK
+// VEÍCULOS (ESCRITA - CRUD)
 // ============================================
+
+export async function createVehicle(data: { name: string; uniqueId: string }): Promise<any> {
+  try {
+    const newDevice = await fetchWithTimeout(buildUrl(API_CONFIG.ENDPOINTS.VEHICLES), {
+      method: "POST",
+      body: JSON.stringify({
+        name: data.name,
+        uniqueId: data.uniqueId,
+      }),
+    });
+    return newDevice;
+  } catch (error) {
+    console.error("Erro ao criar veículo:", error);
+    throw error;
+  }
+}
+
+export async function updateVehicleApi(id: number, data: Partial<{ name: string; uniqueId: string }>): Promise<any> {
+  try {
+    const url = `${buildUrl(API_CONFIG.ENDPOINTS.VEHICLES)}/${id}`;
+    // O Traccar exige o ID dentro do corpo também em alguns updates
+    return await fetchWithTimeout(url, {
+      method: "PUT",
+      body: JSON.stringify({ id, ...data }),
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar veículo:", error);
+    throw error;
+  }
+}
+
+export async function deleteVehicleApi(id: string): Promise<void> {
+  try {
+    const url = `${buildUrl(API_CONFIG.ENDPOINTS.VEHICLES)}/${id}`;
+    await fetchWithTimeout(url, {
+      method: "DELETE",
+    });
+  } catch (error) {
+    console.error("Erro ao deletar veículo:", error);
+    throw error;
+  }
+}
+
 export async function checkApiHealth(): Promise<boolean> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-    // Testar com /api/server (endpoint leve)
     const response = await fetch(buildUrl("/api/server"), {
       method: "GET",
       credentials: "include",
       signal: controller.signal,
     });
-
     clearTimeout(timeoutId);
     return response.ok;
   } catch {
