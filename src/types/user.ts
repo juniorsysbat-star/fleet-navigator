@@ -9,6 +9,7 @@ export interface User {
   createdAt: Date;
   lastLogin?: Date;
   avatar?: string;
+  expirationDate?: Date;
 }
 
 export interface UserDeviceAssociation {
