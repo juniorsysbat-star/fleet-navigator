@@ -37,48 +37,42 @@ import { useTheme } from '@/contexts/ThemeContext';
    const { t, isRTL } = useLanguage();
    const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-    const { addVehicle, isUsingMockData, isDemoMode } = useVehiclesContext();
- 
-   const navItems = [
-     { path: '/', icon: Map, label: settings.moduleNames.tracking || t('nav.tracking') },
-     { path: '/analytics', icon: Brain, label: settings.moduleNames.analytics || t('nav.analytics') },
-     { path: '/drivers', icon: UserCheck, label: 'Motoristas' },
-     { path: '/maintenances', icon: Wrench, label: 'Manutenções' },
-     { path: '/billing', icon: CreditCard, label: settings.moduleNames.billing || t('nav.billing') },
-     { path: '/admin/users', icon: Users, label: settings.moduleNames.users || t('nav.users') },
-     { path: '/settings', icon: Settings, label: settings.moduleNames.settings || t('nav.settings') },
-   ];
- 
-   // Menus exclusivos por role
-   const adminOnlyItems: typeof navItems = [];
-   
-   if (user?.role === 'super_admin' || user?.role === 'manager' || user?.role === 'embarcador') {
-     adminOnlyItems.push({ path: '/announcements', icon: Megaphone, label: 'Comunicados' });
-   }
-   
-   if (user?.role === 'super_admin') {
-     adminOnlyItems.push({ path: '/reseller-billing', icon: Building2, label: 'Financeiro Revenda' });
-   }
- 
-   const allNavItems = [...navItems, ...adminOnlyItems];
- 
-   const handleAddDevice = (device: DeviceFormData) => {
-      // Em modo demo/mock, fazemos persistência local durante a sessão para validar UX.
-      if (isDemoMode || isUsingMockData) {
-        addVehicle(device);
-        toast({
-          title: 'Veículo salvo com sucesso (Modo Local)',
-          description: `${device.plate || device.name}`,
-        });
-        return;
-      }
+  const { addVehicle } = useVehiclesContext();
 
-      console.log('New device:', device);
+  const navItems = [
+    { path: '/', icon: Map, label: settings.moduleNames.tracking || t('nav.tracking') },
+    { path: '/analytics', icon: Brain, label: settings.moduleNames.analytics || t('nav.analytics') },
+    { path: '/drivers', icon: UserCheck, label: 'Motoristas' },
+    { path: '/maintenances', icon: Wrench, label: 'Manutenções' },
+    { path: '/billing', icon: CreditCard, label: settings.moduleNames.billing || t('nav.billing') },
+    { path: '/admin/users', icon: Users, label: settings.moduleNames.users || t('nav.users') },
+    { path: '/settings', icon: Settings, label: settings.moduleNames.settings || t('nav.settings') },
+  ];
+
+  // Menus exclusivos por role
+  const adminOnlyItems: typeof navItems = [];
+  
+  if (user?.role === 'super_admin' || user?.role === 'manager' || user?.role === 'embarcador') {
+    adminOnlyItems.push({ path: '/announcements', icon: Megaphone, label: 'Comunicados' });
+  }
+  
+  if (user?.role === 'super_admin') {
+    adminOnlyItems.push({ path: '/reseller-billing', icon: Building2, label: 'Financeiro Revenda' });
+  }
+
+  const allNavItems = [...navItems, ...adminOnlyItems];
+
+  const handleAddDevice = async (device: DeviceFormData) => {
+    try {
+      await addVehicle(device);
       toast({
         title: 'Dispositivo Adicionado!',
         description: `${device.name} (IMEI: ${device.imei}) foi cadastrado com sucesso.`,
       });
-   };
+    } catch (err) {
+      // Error already handled in useVehicles hook
+    }
+  };
  
    const handleLogout = () => {
      localStorage.clear();

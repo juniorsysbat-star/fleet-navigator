@@ -1,9 +1,9 @@
  import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import L from 'leaflet';
  import { VehicleWithStatus, VehicleType, getStatusVisual } from '@/types/vehicle';
-import { Geofence } from '@/data/mockGeofences';
+import { Geofence } from '@/types/geofence';
 import { Mission } from '@/types/mission';
-  import { TrailPoint } from '@/data/mockTrailHistory';
+import { TrailPoint } from '@/types/trail';
  import { Button } from '@/components/ui/button';
  import { TrafficCone, Layers, Crosshair } from 'lucide-react';
  import { Hexagon } from 'lucide-react';

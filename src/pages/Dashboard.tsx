@@ -7,13 +7,12 @@ import { GeofencePanel, DrawingMode } from '@/components/GeofencePanel';
 import { MissionPlannerModal } from '@/components/MissionPlannerModal';
 import { MissionTracker } from '@/components/MissionTracker';
 import { PanelDock, PanelType } from '@/components/PanelDock';
-import { AlertCircle, Database } from 'lucide-react';
-import { generateMockTrail, MOCK_TRAILS } from '@/data/mockVehicles';
-import { MOCK_GEOFENCES, Geofence } from '@/data/mockGeofences';
+import { AlertCircle } from 'lucide-react';
 import { Mission } from '@/types/mission';
- import { TrailPoint } from '@/data/mockTrailHistory';
 import type { DeviceFormData } from '@/components/admin/DeviceModal';
 import { toast } from '@/hooks/use-toast';
+import { Geofence } from '@/types/geofence';
+import { TrailPoint } from '@/types/trail';
 
 type PanelState = 'open' | 'minimized' | 'closed';
 
@@ -31,7 +30,7 @@ const Dashboard = () => {
    const [trailData, setTrailData] = useState<TrailPoint[] | null>(null);
   
   // Geofence state
-  const [geofences, setGeofences] = useState<Geofence[]>(MOCK_GEOFENCES);
+  const [geofences, setGeofences] = useState<Geofence[]>([]);
   const [isDrawingGeofence, setIsDrawingGeofence] = useState(false);
   const [drawingMode, setDrawingMode] = useState<DrawingMode>(null);
   const [selectedGeofenceId, setSelectedGeofenceId] = useState<string | null>(null);
@@ -50,7 +49,7 @@ const Dashboard = () => {
     mission: 'closed',
   });
   
-  const { vehicles, isLoading, error, lastUpdate, movingCount, stoppedCount, isUsingMockData, refetch, updateVehicle, addVehicle } = useVehiclesContext();
+  const { vehicles, isLoading, error, lastUpdate, movingCount, stoppedCount, refetch, updateVehicle, addVehicle } = useVehiclesContext();
   
   const selectedVehicle = vehicles.find(v => v.device_id === selectedVehicleId) || null;
 
@@ -275,16 +274,8 @@ const Dashboard = () => {
 
       {/* Map Container */}
       <div className="flex-1 relative">
-        {/* Mock Data Banner */}
-        {isUsingMockData && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] px-4 py-2 bg-warning/90 text-warning-foreground rounded-lg flex items-center gap-2 shadow-lg backdrop-blur-sm border border-warning/50">
-            <Database className="w-4 h-4" />
-            <span className="text-sm font-medium">Modo Demo - Dados Simulados</span>
-          </div>
-        )}
-
         {/* Error Banner */}
-        {error && !isUsingMockData && (
+        {error && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] px-4 py-2 bg-destructive/90 text-destructive-foreground rounded-lg flex items-center gap-2 shadow-lg backdrop-blur-sm">
             <AlertCircle className="w-4 h-4" />
             <span className="text-sm font-medium">{error}</span>

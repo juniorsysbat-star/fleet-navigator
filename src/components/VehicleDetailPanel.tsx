@@ -22,7 +22,7 @@ import { DeviceModal, DeviceFormData } from '@/components/admin/DeviceModal';
  import { getVehicleIcon } from '@/utils/vehicleIcons';
  import { getStatusVisual } from '@/types/vehicle';
  import { TrailHistoryModal } from './TrailHistoryModal';
- import { TrailPoint } from '@/data/mockTrailHistory';
+ import { TrailPoint } from '@/types/trail';
 
 interface VehicleDetailPanelProps {
   vehicle: VehicleWithStatus | null;
