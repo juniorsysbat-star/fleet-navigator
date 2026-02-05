@@ -35,6 +35,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { FuelDashboard } from '@/components/fuel/FuelDashboard';
+ import { ReportPdfExport } from '@/components/reports/ReportPdfExport';
 
 const Analytics = () => {
   const getScoreColor = (score: number) => {
@@ -66,11 +67,51 @@ const Analytics = () => {
     }
   };
 
+   // Dados para o relatório PDF
+   const reportData = {
+     title: 'Relatório de Analytics da Frota',
+     period: `${new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`,
+     summary: [
+       { label: 'Total de Motoristas', value: ANALYTICS_SUMMARY.totalDrivers },
+       { label: 'Score Médio', value: ANALYTICS_SUMMARY.averageScore },
+       { label: 'Km Rodados (Mês)', value: `${(ANALYTICS_SUMMARY.totalKmThisMonth / 1000).toFixed(0)}k` },
+       { label: 'Combustível Economizado', value: `${ANALYTICS_SUMMARY.fuelSavedLiters}L` },
+       { label: 'CO₂ Reduzido', value: `${(ANALYTICS_SUMMARY.co2ReductionKg / 1000).toFixed(1)}t` },
+       { label: 'Alertas na Semana', value: ANALYTICS_SUMMARY.alertsThisWeek },
+     ],
+     tables: [
+       {
+         title: 'Ranking de Motoristas',
+         headers: ['Posição', 'Motorista', 'Veículo', 'Score', 'Km Total', 'Violações'],
+         rows: MOCK_DRIVER_SCORES.sort((a, b) => b.score - a.score).map((driver, index) => [
+           index + 1,
+           driver.name,
+           driver.vehicleName,
+           driver.score,
+           driver.totalKm.toLocaleString(),
+           driver.speedViolations + driver.harshBraking + driver.harshTurns,
+         ]),
+       },
+       {
+         title: 'Previsão de Manutenção',
+         headers: ['Veículo', 'Tipo de Manutenção', 'Urgência', 'Km Atual', 'Previsão'],
+         rows: MOCK_MAINTENANCE_PREDICTIONS.map((pred) => [
+           pred.vehicleName,
+           pred.maintenanceType,
+           pred.urgency === 'critical' ? 'URGENTE' : pred.urgency === 'high' ? 'ALTO' : pred.urgency === 'medium' ? 'MÉDIO' : 'BAIXO',
+           pred.currentKm.toLocaleString(),
+           pred.predictedDate.toLocaleDateString('pt-BR'),
+         ]),
+       },
+     ],
+   };
+ 
   return (
     <div className="h-full overflow-y-auto bg-background p-6 scrollbar-cyber">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
+         <div className="flex items-center justify-between mb-2">
+           <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent/20 to-primary/20 flex items-center justify-center border border-accent/30">
             <Brain className="w-6 h-6 text-accent" />
           </div>
@@ -82,6 +123,8 @@ const Analytics = () => {
               Gestão inteligente de frota com machine learning
             </p>
           </div>
+           </div>
+           <ReportPdfExport reportData={reportData} type="analytics" />
         </div>
       </div>
 
