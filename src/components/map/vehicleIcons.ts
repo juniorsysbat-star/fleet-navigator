@@ -20,7 +20,7 @@
  
  // Status color definitions
  const STATUS_COLORS = {
-  moving: { main: '#3b82f6', glow: 'rgba(59, 130, 246, 0.5)' },   // Blue: Moving
+  moving: { main: '#10b981', glow: 'rgba(16, 185, 129, 0.5)' },   // Emerald: Moving
   idle: { main: '#eab308', glow: 'rgba(234, 179, 8, 0.5)' },      // Yellow: Stopped
   offline: { main: '#6b7280', glow: 'rgba(107, 114, 128, 0.5)' }, // Gray: Offline
   unknown: { main: '#6b7280', glow: 'rgba(107, 114, 128, 0.5)' }, // Gray: Unknown
