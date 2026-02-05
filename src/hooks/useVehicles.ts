@@ -1,19 +1,23 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Vehicle, VehicleWithStatus } from '@/types/vehicle';
-import { API_CONFIG, getPositionsUrl } from '@/config/api';
+ import { API_CONFIG } from '@/config/api';
 import { getAnimatedMockVehicles } from '@/data/mockVehicles';
  import { generateDemoVehicles, animateDemoVehicles } from '@/data/mockDemoVehicles';
  import { useAuth } from '@/contexts/AuthContext';
 import type { DeviceFormData } from '@/components/admin/DeviceModal';
+ import { fetchVehiclesFromApi, NormalizedVehicle } from '@/services/apiService';
+ import { onVehicleUpdate, isSocketConnected } from '@/services/socketService';
 
  export function useVehicles(forceDemoMode?: boolean) {
    // Tenta usar o contexto de auth, mas fallback para false se não estiver disponível
    let isDemoFromContext = false;
   let loginDemoFn: (() => void) | null = null;
+  let isApiConnectedFromContext = false;
    try {
      const auth = useAuth();
      isDemoFromContext = auth.isDemoMode;
     loginDemoFn = auth.loginDemo;
+    isApiConnectedFromContext = auth.isApiConnected;
    } catch {
      // Se não estiver dentro do AuthProvider, usa o parâmetro
    }
@@ -44,6 +48,7 @@ import type { DeviceFormData } from '@/components/admin/DeviceModal';
   const retryCountRef = useRef(0);
   const hasTriedApiRef = useRef(false);
   const autoFallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const socketCleanupRef = useRef<(() => void) | null>(null);
 
    const animateLocalMockVehicles = useCallback((list: Vehicle[]): Vehicle[] => {
      return list.map((vehicle) => ({
@@ -83,6 +88,17 @@ import type { DeviceFormData } from '@/components/admin/DeviceModal';
     });
   };
 
+  // Converte NormalizedVehicle para Vehicle
+  const normalizedToVehicle = (nv: NormalizedVehicle): Vehicle => ({
+    device_id: nv.device_id,
+    device_name: nv.device_name,
+    latitude: nv.latitude,
+    longitude: nv.longitude,
+    speed: nv.speed,
+    address: nv.address,
+    devicetime: nv.devicetime,
+  });
+
   const fetchVehicles = useCallback(async () => {
      // Modo demonstração: 50 veículos pelo Brasil
      if (isDemo) {
@@ -115,27 +131,16 @@ import type { DeviceFormData } from '@/components/admin/DeviceModal';
     }
 
     try {
-      const controller = new AbortController();
-      // Timeout reduzido para 3 segundos - libera rápido
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-      const response = await fetch(getPositionsUrl(), {
-        signal: controller.signal,
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data: Vehicle[] = await response.json();
+       // Usa o novo serviço de API com mapeamento automático
+       const normalizedData = await fetchVehiclesFromApi();
+       const data: Vehicle[] = normalizedData.map(normalizedToVehicle);
       
       setVehicles(processVehicles(data, false));
       setLastUpdate(new Date());
       setError(null);
       setIsUsingMockData(false);
       hasTriedApiRef.current = true;
+       retryCountRef.current = 0;
     } catch (err) {
       // Log silencioso - não alarma o usuário
       if (!hasTriedApiRef.current) {
@@ -143,6 +148,7 @@ import type { DeviceFormData } from '@/components/admin/DeviceModal';
       }
       
       hasTriedApiRef.current = true;
+      retryCountRef.current++;
       
       // Fallback silencioso para mock data
       if (mockVehiclesRef.current.length === 0) {
@@ -172,11 +178,48 @@ import type { DeviceFormData } from '@/components/admin/DeviceModal';
     }
     }, [isDemo, isDemoFromContext, loginDemoFn, animateLocalMockVehicles]);
 
+  // Listener para atualizações via Socket.io
+  useEffect(() => {
+    if (isDemo || API_CONFIG.FORCE_MOCK_DATA) return;
+    const unsubscribe = onVehicleUpdate((updatedVehicles) => {
+      if (updatedVehicles.length === 0) return;
+      setVehicles(prev => {
+        const updatedMap = new Map(updatedVehicles.map(v => [v.device_id, v]));
+        return prev.map(vehicle => {
+          const updated = updatedMap.get(vehicle.device_id);
+          if (updated) {
+            return {
+              ...vehicle,
+              latitude: updated.latitude,
+              longitude: updated.longitude,
+              speed: updated.speed,
+              address: updated.address,
+              devicetime: updated.devicetime,
+              ignition: updated.ignition,
+              blocked: updated.blocked,
+              alarm: updated.alarm,
+              isMoving: updated.speed > 0,
+              status: updated.speed > 5 ? 'moving' : updated.speed > 0 ? 'idle' : 'stopped',
+            };
+          }
+          return vehicle;
+        });
+      });
+      setLastUpdate(new Date());
+      setIsUsingMockData(false);
+    });
+    socketCleanupRef.current = unsubscribe;
+    return () => { unsubscribe(); };
+  }, [isDemo]);
+
   useEffect(() => {
     // Limpa timer ao desmontar
     return () => {
       if (autoFallbackTimerRef.current) {
         clearTimeout(autoFallbackTimerRef.current);
+      }
+      if (socketCleanupRef.current) {
+        socketCleanupRef.current();
       }
     };
   }, []);
@@ -278,6 +321,8 @@ import type { DeviceFormData } from '@/components/admin/DeviceModal';
     stoppedCount,
     isUsingMockData,
      isDemoMode: isDemo,
+    isSocketConnected: isSocketConnected(),
+    isApiConnected: isApiConnectedFromContext,
     refetch: fetchVehicles,
     updateVehicle,
     addVehicle,
