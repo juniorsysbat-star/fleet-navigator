@@ -1,14 +1,15 @@
  import { useState, useEffect, useMemo } from 'react';
- import { X, Cpu, Hash, Phone, Car, Bike, Truck, CarFront, Tractor, Bus, Palette, ChevronRight, Server, Info, Sparkles } from 'lucide-react';
+import { X, Cpu, Hash, Phone, Car, Bike, Truck, CarFront, Tractor, Bus, Palette, ChevronRight, Server, Info, Sparkles, FileText, Calendar, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
  import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
- import { VehicleType } from '@/types/vehicle';
+import { VehicleType, Trailer } from '@/types/vehicle';
  import { TRACKER_DATABASE, getManufacturerById, getModelById, SERVER_IP, TrackerModel } from '@/data/trackerDatabase';
  import { MercosulPlate, validatePlate } from './MercosulPlate';
  import { Alert, AlertDescription } from '@/components/ui/alert';
+import { TrailerSection } from './TrailerSection';
 
 export interface DeviceFormData {
   id?: string;
@@ -22,6 +23,10 @@ export interface DeviceFormData {
   simPhone: string;
   vehicleType: VehicleType;
   iconColor: string;
+  ipvaExpiry?: string;
+  insuranceExpiry?: string;
+  licensingExpiry?: string;
+  trailers?: Trailer[];
 }
 
 interface DeviceModalProps {
@@ -60,6 +65,10 @@ export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModal
   const [vehicleType, setVehicleType] = useState<VehicleType>('sedan');
   const [iconColor, setIconColor] = useState('status');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [ipvaExpiry, setIpvaExpiry] = useState('');
+  const [insuranceExpiry, setInsuranceExpiry] = useState('');
+  const [licensingExpiry, setLicensingExpiry] = useState('');
+  const [trailers, setTrailers] = useState<Trailer[]>([]);
  
    // Derived state for selected model and port
    const selectedManufacturer = useMemo(() => 
@@ -80,6 +89,10 @@ export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModal
       setSimPhone(editDevice.simPhone);
       setVehicleType(editDevice.vehicleType || 'sedan');
       setIconColor(editDevice.iconColor || 'status');
+      setIpvaExpiry(editDevice.ipvaExpiry || '');
+      setInsuranceExpiry(editDevice.insuranceExpiry || '');
+      setLicensingExpiry(editDevice.licensingExpiry || '');
+      setTrailers(editDevice.trailers || []);
     } else {
       resetForm();
     }
@@ -94,6 +107,10 @@ export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModal
     setVehicleType('sedan');
     setIconColor('status');
     setErrors({});
+    setIpvaExpiry('');
+    setInsuranceExpiry('');
+    setLicensingExpiry('');
+    setTrailers([]);
   };
  
    // Reset model when manufacturer changes
@@ -149,6 +166,10 @@ export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModal
       simPhone: simPhone.trim(),
       vehicleType,
       iconColor,
+      ipvaExpiry: ipvaExpiry || undefined,
+      insuranceExpiry: insuranceExpiry || undefined,
+      licensingExpiry: licensingExpiry || undefined,
+      trailers: trailers.length > 0 ? trailers : undefined,
     });
     
     onClose();
@@ -421,6 +442,63 @@ export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModal
               {imei.length}/15 dígitos
             </p>
           </div>
+
+          {/* Documentation & Coupling Section - Only for Trucks */}
+          {vehicleType === 'truck' && (
+            <div className="space-y-4 pt-4 border-t border-border">
+              <Label className="flex items-center gap-2 text-accent text-base">
+                <FileText className="w-5 h-5" />
+                Documentação & Acoplamento
+              </Label>
+
+              {/* Document Expiry Dates */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    IPVA
+                  </Label>
+                  <Input
+                    type="date"
+                    value={ipvaExpiry}
+                    onChange={(e) => setIpvaExpiry(e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Shield className="w-3 h-3" />
+                    Seguro
+                  </Label>
+                  <Input
+                    type="date"
+                    value={insuranceExpiry}
+                    onChange={(e) => setInsuranceExpiry(e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <FileText className="w-3 h-3" />
+                    Licenciamento
+                  </Label>
+                  <Input
+                    type="date"
+                    value={licensingExpiry}
+                    onChange={(e) => setLicensingExpiry(e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Trailer Section */}
+              <TrailerSection 
+                trailers={trailers}
+                onChange={setTrailers}
+                maxTrailers={2}
+              />
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-3 pt-4 sticky bottom-0 bg-card/95 backdrop-blur-xl pb-2">
