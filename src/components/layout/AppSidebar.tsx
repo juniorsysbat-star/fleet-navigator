@@ -9,12 +9,12 @@ import {
   ChevronRight,
   Users,
   Plus,
-  Cpu
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useCustomization } from '@/contexts/CustomizationContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { DeviceModal, DeviceFormData } from '@/components/admin/DeviceModal';
 import { toast } from '@/hooks/use-toast';
 
@@ -23,38 +23,34 @@ export function AppSidebar() {
   const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
   const location = useLocation();
   const { settings } = useCustomization();
+  const { t, isRTL } = useLanguage();
 
   const navItems = [
-  { 
-    path: '/', 
-    icon: Map, 
-      label: settings.moduleNames.tracking, 
-    description: 'Mapa em tempo real' 
-  },
-  { 
-    path: '/analytics', 
-    icon: Brain, 
-      label: settings.moduleNames.analytics, 
-    description: 'Gestão inteligente' 
-  },
-  { 
-    path: '/billing', 
-    icon: CreditCard, 
-      label: settings.moduleNames.billing, 
-    description: 'Cobranças e clientes' 
-  },
-  { 
-    path: '/admin/users', 
-    icon: Users, 
-      label: settings.moduleNames.users, 
-    description: 'Gestão de clientes' 
-  },
-  { 
-    path: '/settings', 
-    icon: Settings, 
-      label: settings.moduleNames.settings, 
-    description: 'Preferências' 
-  },
+    { 
+      path: '/', 
+      icon: Map, 
+      label: settings.moduleNames.tracking || t('nav.tracking'),
+    },
+    { 
+      path: '/analytics', 
+      icon: Brain, 
+      label: settings.moduleNames.analytics || t('nav.analytics'),
+    },
+    { 
+      path: '/billing', 
+      icon: CreditCard, 
+      label: settings.moduleNames.billing || t('nav.billing'),
+    },
+    { 
+      path: '/admin/users', 
+      icon: Users, 
+      label: settings.moduleNames.users || t('nav.users'),
+    },
+    { 
+      path: '/settings', 
+      icon: Settings, 
+      label: settings.moduleNames.settings || t('nav.settings'),
+    },
   ];
 
   const handleAddDevice = (device: DeviceFormData) => {
@@ -71,7 +67,8 @@ export function AppSidebar() {
     <aside 
       className={cn(
         "h-screen flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out",
-        isCollapsed ? "w-[72px]" : "w-[200px]"
+        isCollapsed ? "w-[72px]" : "w-[200px]",
+        isRTL && "border-r-0 border-l"
       )}
     >
       {/* Logo */}
@@ -125,7 +122,7 @@ export function AppSidebar() {
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 transition-all font-semibold text-sm"
             >
               <Plus className="w-4 h-4" />
-              <span>Novo Dispositivo</span>
+              <span>{t('nav.newDevice')}</span>
             </button>
           )}
         </div>
@@ -143,7 +140,8 @@ export function AppSidebar() {
                 "flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 group relative overflow-hidden",
                 isActive
                   ? "bg-accent/10 text-accent border border-accent/30"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 border border-transparent"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 border border-transparent",
+                isRTL && "flex-row-reverse"
               )}
             >
               {/* Active indicator glow */}
@@ -159,22 +157,20 @@ export function AppSidebar() {
               />
               
               {!isCollapsed && (
-                <div className="flex flex-col animate-fade-in relative z-10">
-                  <span className={cn(
-                    "text-sm font-semibold",
-                    isActive && "text-accent"
-                  )}>
-                    {item.label}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {item.description}
-                  </span>
-                </div>
+                <span className={cn(
+                  "text-sm font-semibold animate-fade-in relative z-10",
+                  isActive && "text-accent"
+                )}>
+                  {item.label}
+                </span>
               )}
 
               {/* Active bar */}
               {isActive && (
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-accent rounded-l-full shadow-[0_0_10px_hsl(var(--accent))]" />
+                <div className={cn(
+                  "absolute top-1/2 -translate-y-1/2 w-1 h-8 bg-accent shadow-[0_0_10px_hsl(var(--accent))]",
+                  isRTL ? "left-0 rounded-r-full" : "right-0 rounded-l-full"
+                )} />
               )}
             </NavLink>
           );
@@ -185,9 +181,8 @@ export function AppSidebar() {
                 <TooltipTrigger asChild>
                   {linkContent}
                 </TooltipTrigger>
-                <TooltipContent side="right" className="flex flex-col">
+                <TooltipContent side={isRTL ? "left" : "right"} className="flex flex-col">
                   <span className="font-semibold">{item.label}</span>
-                  <span className="text-xs text-muted-foreground">{item.description}</span>
                 </TooltipContent>
               </Tooltip>
             );
@@ -203,15 +198,16 @@ export function AppSidebar() {
           onClick={() => setIsCollapsed(!isCollapsed)}
           className={cn(
             "w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
-            "text-muted-foreground hover:text-foreground hover:bg-secondary/50 border border-transparent hover:border-border"
+            "text-muted-foreground hover:text-foreground hover:bg-secondary/50 border border-transparent hover:border-border",
+            isRTL && "flex-row-reverse"
           )}
         >
           {isCollapsed ? (
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className={cn("w-4 h-4", isRTL && "rotate-180")} />
           ) : (
             <>
-              <ChevronLeft className="w-4 h-4" />
-              <span className="text-xs font-medium">Recolher</span>
+              <ChevronLeft className={cn("w-4 h-4", isRTL && "rotate-180")} />
+              <span className="text-xs font-medium">{t('nav.collapse')}</span>
             </>
           )}
         </button>
