@@ -232,3 +232,24 @@
   margin: 12px 16px !important;
   font-family: 'Rajdhani', sans-serif !important;
 }
+
+/* Z-Index hierarchy for UI layers */
+.leaflet-container {
+  z-index: 0 !important;
+}
+
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom,
+.leaflet-control {
+  z-index: 1 !important;
+}
+
+/* Ensure all overlays render above the map */
+[data-radix-popper-content-wrapper],
+[data-radix-dialog-overlay],
+[data-radix-dialog-content],
+[role="dialog"],
+.fixed[data-state] {
+  z-index: 9999 !important;
+}
