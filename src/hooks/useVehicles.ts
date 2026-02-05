@@ -1,21 +1,26 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useContext, createContext } from "react";
 import { Vehicle, VehicleWithStatus } from "@/types/vehicle";
 import { API_CONFIG } from "@/config/api";
 import { generateDemoVehicles, animateDemoVehicles } from "@/data/mockDemoVehicles";
-import { useAuth } from "@/contexts/AuthContext";
 import type { DeviceFormData } from "@/components/admin/DeviceModal";
 import { fetchVehiclesFromApi, NormalizedVehicle } from "@/services/apiService";
 import { onVehicleUpdate, isSocketConnected } from "@/services/socketService";
 
-export function useVehicles(forceDemoMode?: boolean) {
-  let isDemoFromContext = false;
-  let isApiConnectedFromContext = false;
+// Create a local context reference to avoid importing useAuth (which throws)
+interface AuthContextValue {
+  isDemoMode: boolean;
+  isApiConnected: boolean;
+}
 
-  try {
-    const auth = useAuth();
-    isDemoFromContext = auth.isDemoMode;
-    isApiConnectedFromContext = auth.isApiConnected;
-  } catch {}
+// We'll import the actual context from AuthContext module
+import { AuthContext } from "@/contexts/AuthContext";
+
+export function useVehicles(forceDemoMode?: boolean) {
+  // Always call useContext - returns undefined if outside provider (won't throw)
+  const authContext = useContext(AuthContext);
+  
+  const isDemoFromContext = authContext?.isDemoMode ?? false;
+  const isApiConnectedFromContext = authContext?.isApiConnected ?? false;
 
   const isDemo = forceDemoMode ?? isDemoFromContext;
 
