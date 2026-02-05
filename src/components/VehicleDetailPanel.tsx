@@ -53,21 +53,10 @@ export function VehicleDetailPanel({
     console.log('⚠️ Esta é uma ação simulada - nenhum veículo foi realmente bloqueado.');
   };
 
-   // Usar lógica unificada de status
-   const { bgClass, textClass, borderClass } = getStatusVisual(vehicle);
-   const isAlert = bgClass === 'bg-red-500';
-   
-   const statusLabel = isAlert
-     ? vehicle.blocked
-       ? 'BLOQUEADO'
-       : vehicle.alarm
-         ? 'ALERTA ATIVO'
-         : 'VIOLAÇÃO'
-     : bgClass === 'bg-gray-500'
-       ? 'OFFLINE'
-       : bgClass === 'bg-yellow-500'
-         ? 'PARADO LIGADO'
-         : 'EM MOVIMENTO';
+  // Usar lógica unificada de status
+  const { bgClass, textClass, borderClass, statusLabel } = getStatusVisual(vehicle);
+  const isAlert = Boolean(vehicle.blocked || vehicle.alarm || vehicle.alert);
+  
   const timeAgo = formatDistanceToNow(new Date(vehicle.devicetime), { 
     addSuffix: true, 
     locale: ptBR 

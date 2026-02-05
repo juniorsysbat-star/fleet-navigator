@@ -20,21 +20,8 @@ export function VehicleCard({ vehicle, isSelected, onClick }: VehicleCardProps) 
     });
   };
 
-  const { bgClass, textClass, borderClass, softBgClass } = getStatusVisual(vehicle);
-  const isAlert = bgClass === 'bg-red-500';
-
-  const statusLabel =
-    isAlert
-      ? vehicle.blocked
-        ? 'BLOQUEADO'
-        : vehicle.alarm
-          ? 'ALERTA ATIVO'
-          : 'VIOLAÇÃO'
-      : bgClass === 'bg-gray-500'
-        ? 'OFFLINE'
-        : bgClass === 'bg-yellow-500'
-          ? 'PARADO LIGADO'
-          : 'EM MOVIMENTO';
+  const { bgClass, textClass, borderClass, softBgClass, statusLabel } = getStatusVisual(vehicle);
+  const isAlert = Boolean(vehicle.blocked || vehicle.alarm || vehicle.alert);
 
   return (
     <button
@@ -76,7 +63,7 @@ export function VehicleCard({ vehicle, isSelected, onClick }: VehicleCardProps) 
           </div>
           
           {/* Pulsing dot for alerts or moving vehicles */}
-          {(isAlert || bgClass === 'bg-emerald-500') && (
+            {(isAlert || vehicle.speed >= 1) && (
             <span className="absolute -top-1 -right-1 w-3 h-3">
               <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping", bgClass)} />
               <span className={cn("relative inline-flex rounded-full h-3 w-3", bgClass)} />

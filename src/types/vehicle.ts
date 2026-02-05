@@ -50,7 +50,7 @@ export interface VehicleWithStatus extends Vehicle {
 // Matches the user's requested priority (alerts override everything)
 export type StatusColorClass =
   | 'bg-red-500'
-  | 'bg-gray-500'
+  | 'bg-gray-400'
   | 'bg-yellow-500'
   | 'bg-emerald-500';
 
@@ -59,7 +59,7 @@ export function getStatusColor(vehicle: Pick<VehicleWithStatus, 'alarm' | 'alert
   if (vehicle.alarm || vehicle.alert || vehicle.blocked) return 'bg-red-500';
 
   // Se não tem alarme, mas está offline -> CINZA
-  if (vehicle.status === 'offline') return 'bg-gray-500';
+  if (vehicle.status === 'offline') return 'bg-gray-400';
 
   // Se online e velocidade 0 -> AMARELO
   if (vehicle.speed < 1) return 'bg-yellow-500';
@@ -74,13 +74,13 @@ export function getStatusVisual(vehicle: VehicleWithStatus) {
   const bgClass = getStatusColor(vehicle);
   const textClass = bgClass.replace('bg-', 'text-') as
     | 'text-red-500'
-    | 'text-gray-500'
+    | 'text-gray-400'
     | 'text-yellow-500'
     | 'text-emerald-500';
 
   const borderClass = bgClass.replace('bg-', 'border-') as
     | 'border-red-500'
-    | 'border-gray-500'
+    | 'border-gray-400'
     | 'border-yellow-500'
     | 'border-emerald-500';
 
@@ -89,11 +89,25 @@ export function getStatusVisual(vehicle: VehicleWithStatus) {
   const markerStatus: MarkerStatus =
     bgClass === 'bg-red-500'
       ? 'speeding'
-      : bgClass === 'bg-gray-500'
+      : bgClass === 'bg-gray-400'
         ? 'offline'
         : bgClass === 'bg-yellow-500'
           ? 'idle'
           : 'moving';
+
+  // Unified label derived from the same color logic
+  const statusLabel = 
+    bgClass === 'bg-red-500'
+      ? vehicle.blocked
+        ? 'BLOQUEADO'
+        : vehicle.alarm
+          ? `ALARME (${String(vehicle.alarm).toUpperCase()})`
+          : 'ALERTA ATIVO'
+      : bgClass === 'bg-gray-400'
+        ? 'OFFLINE / SEM SINAL'
+        : bgClass === 'bg-yellow-500'
+          ? 'PARADO (LIGADO)'
+          : 'EM MOVIMENTO';
 
   return {
     bgClass,
@@ -101,6 +115,7 @@ export function getStatusVisual(vehicle: VehicleWithStatus) {
     borderClass,
     softBgClass,
     markerStatus,
+    statusLabel,
   };
 }
 
@@ -151,10 +166,10 @@ export function getVehicleStatusWithPriority(vehicle: VehicleWithStatus): Vehicl
     return {
       status: 'offline',
       label: 'OFFLINE',
-      colorClass: 'text-gray-500',
-      dotClass: 'bg-gray-500',
-      borderClass: 'border-gray-500',
-      bgClass: 'bg-gray-500/10',
+      colorClass: 'text-gray-400',
+      dotClass: 'bg-gray-400',
+      borderClass: 'border-gray-400',
+      bgClass: 'bg-gray-400/10',
       glowColor: 'none',
     };
   }
@@ -172,14 +187,14 @@ export function getVehicleStatusWithPriority(vehicle: VehicleWithStatus): Vehicl
     };
   }
 
-  // PRIORITY 3 - 🔵 BLUE: Moving (speed >= 2)
+  // PRIORITY 3 - 🟢 EMERALD: Moving (speed >= 2)
   return {
     status: 'moving',
     label: 'EM MOVIMENTO',
-    colorClass: 'text-blue-500',
-    dotClass: 'bg-blue-500',
-    borderClass: 'border-blue-500',
-    bgClass: 'bg-blue-500/10',
-    glowColor: 'rgba(59, 130, 246, 0.4)',
+    colorClass: 'text-emerald-500',
+    dotClass: 'bg-emerald-500',
+    borderClass: 'border-emerald-500',
+    bgClass: 'bg-emerald-500/10',
+    glowColor: 'rgba(16, 185, 129, 0.4)',
   };
 }
