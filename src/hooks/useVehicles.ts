@@ -320,42 +320,11 @@ import type { DeviceFormData } from '@/components/admin/DeviceModal';
     movingCount,
     stoppedCount,
     isUsingMockData,
-     isDemoMode: isDemo,
+    isDemoMode: isDemo,
     isSocketConnected: isSocketConnected(),
     isApiConnected: isApiConnectedFromContext,
     refetch: fetchVehicles,
     updateVehicle,
-      const addVehicle = useCallback(async (device: DeviceFormData) => {
-     setIsLoading(true);
-     try {
-       // 1. Chama a API para criar (você precisa ter essa função no apiService)
-       // Se não tiver a função createVehicle, vamos improvisar ou você cria no apiService
-       
-       // IMPORTANTE: O endpoint correto é POST /api/devices
-       const response = await fetch(`${API_CONFIG.BASE_URL}/api/devices`, {
-         method: 'POST',
-         headers: {
-           'Content-Type': 'application/json',
-           // Se precisar de credenciais, o browser manda cookies automaticamente
-         },
-         body: JSON.stringify({
-           name: device.plate || device.name,
-           uniqueId: device.imei,
-           // Traccar exige esses campos minimos
-         })
-       });
-
-       if (!response.ok) throw new Error('Falha ao criar veículo');
-
-       // 2. Recarrega a lista oficial
-       await fetchVehicles();
-       
-     } catch (err) {
-       console.error(err);
-       setError('Erro ao salvar veículo');
-     } finally {
-       setIsLoading(false);
-     }
-  }, [fetchVehicles]);
+    addVehicle,
   };
 }
