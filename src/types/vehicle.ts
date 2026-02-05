@@ -28,6 +28,11 @@ export interface Vehicle {
   vehicleType?: VehicleType;
   iconColor?: string;
   documentation?: VehicleDocumentation;
+
+  // Alert fields (may come from API or mocks)
+  blocked?: boolean;
+  alarm?: string | null;
+  alert?: boolean;
 }
 
 export type VehicleStatus = 'moving' | 'stopped' | 'idle' | 'offline' | 'unknown';
@@ -39,8 +44,64 @@ export interface VehicleWithStatus extends Vehicle {
   ignition?: boolean;
   batteryLevel?: number;
   historyTrail?: { lat: number; lng: number }[];
-  blocked?: boolean;
-  alarm?: string | null;
+}
+
+// === Color logic (single source of truth) ===
+// Matches the user's requested priority (alerts override everything)
+export type StatusColorClass =
+  | 'bg-red-500'
+  | 'bg-gray-500'
+  | 'bg-yellow-500'
+  | 'bg-emerald-500';
+
+export function getStatusColor(vehicle: Pick<VehicleWithStatus, 'alarm' | 'alert' | 'blocked' | 'status' | 'speed'>): StatusColorClass {
+  // SE tiver qualquer valor no campo de alarme OU estiver bloqueado -> VERMELHO
+  if (vehicle.alarm || vehicle.alert || vehicle.blocked) return 'bg-red-500';
+
+  // Se não tem alarme, mas está offline -> CINZA
+  if (vehicle.status === 'offline') return 'bg-gray-500';
+
+  // Se online e velocidade 0 -> AMARELO
+  if (vehicle.speed < 1) return 'bg-yellow-500';
+
+  // Se online e andando -> VERDE
+  return 'bg-emerald-500';
+}
+
+export type MarkerStatus = 'moving' | 'idle' | 'offline' | 'unknown' | 'speeding';
+
+export function getStatusVisual(vehicle: VehicleWithStatus) {
+  const bgClass = getStatusColor(vehicle);
+  const textClass = bgClass.replace('bg-', 'text-') as
+    | 'text-red-500'
+    | 'text-gray-500'
+    | 'text-yellow-500'
+    | 'text-emerald-500';
+
+  const borderClass = bgClass.replace('bg-', 'border-') as
+    | 'border-red-500'
+    | 'border-gray-500'
+    | 'border-yellow-500'
+    | 'border-emerald-500';
+
+  const softBgClass = (bgClass + '/10') as string;
+
+  const markerStatus: MarkerStatus =
+    bgClass === 'bg-red-500'
+      ? 'speeding'
+      : bgClass === 'bg-gray-500'
+        ? 'offline'
+        : bgClass === 'bg-yellow-500'
+          ? 'idle'
+          : 'moving';
+
+  return {
+    bgClass,
+    textClass,
+    borderClass,
+    softBgClass,
+    markerStatus,
+  };
 }
 
 // Unified status logic with alert priority

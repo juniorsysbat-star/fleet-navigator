@@ -1,4 +1,4 @@
-import { VehicleWithStatus, getVehicleStatusWithPriority } from '@/types/vehicle';
+import { VehicleWithStatus, getStatusColor, getStatusVisual } from '@/types/vehicle';
 import { Car, Gauge, MapPin, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +19,21 @@ export function VehicleCard({ vehicle, isSelected, onClick }: VehicleCardProps) 
     });
   };
 
-  const statusInfo = getVehicleStatusWithPriority(vehicle);
+  const { bgClass, textClass, borderClass, softBgClass } = getStatusVisual(vehicle);
+  const isAlert = bgClass === 'bg-red-500';
+
+  const statusLabel =
+    isAlert
+      ? vehicle.blocked
+        ? 'BLOQUEADO'
+        : vehicle.alarm
+          ? 'ALERTA ATIVO'
+          : 'VIOLAÇÃO'
+      : bgClass === 'bg-gray-500'
+        ? 'OFFLINE'
+        : bgClass === 'bg-yellow-500'
+          ? 'PARADO LIGADO'
+          : 'EM MOVIMENTO';
 
   return (
     <button
@@ -40,25 +54,30 @@ export function VehicleCard({ vehicle, isSelected, onClick }: VehicleCardProps) 
             className={cn(
               "w-10 h-10 rounded-full flex items-center justify-center",
               "border-2 transition-all duration-300",
-              statusInfo.borderClass,
-              statusInfo.bgClass
+              borderClass,
+              softBgClass
             )}
             style={{
-              boxShadow: statusInfo.glowColor !== 'none' 
-                ? `0 0 15px ${statusInfo.glowColor}` 
-                : 'none',
+              boxShadow:
+                isAlert
+                  ? '0 0 15px rgba(239, 68, 68, 0.8)'
+                  : bgClass === 'bg-emerald-500'
+                    ? '0 0 15px rgba(16, 185, 129, 0.4)'
+                    : bgClass === 'bg-yellow-500'
+                      ? '0 0 15px rgba(234, 179, 8, 0.4)'
+                      : 'none',
             }}
           >
             <Car
-              className={cn("w-5 h-5", statusInfo.colorClass)}
+              className={cn("w-5 h-5", textClass)}
             />
           </div>
           
-          {/* Pulsing dot for moving vehicles or alerts */}
-          {(statusInfo.status === 'moving' || statusInfo.status === 'alert') && (
+          {/* Pulsing dot for alerts or moving vehicles */}
+          {(isAlert || bgClass === 'bg-emerald-500') && (
             <span className="absolute -top-1 -right-1 w-3 h-3">
-              <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping", statusInfo.dotClass)} />
-              <span className={cn("relative inline-flex rounded-full h-3 w-3", statusInfo.dotClass)} />
+              <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping", bgClass)} />
+              <span className={cn("relative inline-flex rounded-full h-3 w-3", bgClass)} />
             </span>
           )}
         </div>
@@ -70,14 +89,11 @@ export function VehicleCard({ vehicle, isSelected, onClick }: VehicleCardProps) 
               {vehicle.device_name}
             </h3>
             <div className="flex items-center gap-1.5">
-              <span className={cn("w-2 h-2 rounded-full", statusInfo.dotClass)} />
+              <span className={cn("w-2 h-2 rounded-full", bgClass)} />
               <span
-                className={cn(
-                  "text-[10px] font-bold",
-                  statusInfo.colorClass
-                )}
+                className={cn("text-[10px] font-bold", textClass)}
               >
-                {statusInfo.label}
+                {statusLabel}
               </span>
             </div>
           </div>

@@ -1,6 +1,6 @@
  import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import L from 'leaflet';
-import { VehicleWithStatus, VehicleType, getVehicleStatusWithPriority, VehicleAlertStatus } from '@/types/vehicle';
+import { VehicleWithStatus, VehicleType, getStatusVisual, getStatusColor } from '@/types/vehicle';
 import { Geofence } from '@/data/mockGeofences';
 import { Mission } from '@/types/mission';
  import { Button } from '@/components/ui/button';
@@ -139,20 +139,26 @@ export function VehicleMap({
   };
 
   const createPopupContent = (vehicle: VehicleWithStatus) => {
-    const statusInfo = getVehicleStatusWithPriority(vehicle);
+    const { bgClass } = getStatusVisual(vehicle);
+    const isAlert = bgClass === 'bg-red-500';
+
     const statusColors = {
-      alert: 'hsl(0, 85%, 55%)',
-      moving: 'hsl(160, 100%, 45%)',
-      idle: 'hsl(50, 100%, 55%)',
-      offline: 'hsl(220, 15%, 55%)',
-      unknown: 'hsl(220, 15%, 55%)',
+      'bg-red-500': 'hsl(0, 85%, 55%)',
+      'bg-emerald-500': 'hsl(160, 100%, 45%)',
+      'bg-yellow-500': 'hsl(50, 100%, 55%)',
+      'bg-gray-500': 'hsl(220, 15%, 55%)',
     };
     const statusLabels = {
-      alert: statusInfo.label,
-      moving: 'Em movimento',
-      idle: 'Parado ligado',
-      offline: 'Offline',
-      unknown: 'Desconhecido',
+      'bg-red-500': isAlert
+        ? vehicle.blocked
+          ? 'BLOQUEADO'
+          : vehicle.alarm
+            ? 'ALERTA ATIVO'
+            : 'VIOLAÇÃO'
+        : '',
+      'bg-emerald-500': 'Em movimento',
+      'bg-yellow-500': 'Parado ligado',
+      'bg-gray-500': 'Offline',
     };
 
     return `
@@ -170,9 +176,9 @@ export function VehicleMap({
         
         <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <div style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColors[statusInfo.status]}"></div>
-            <span style="color: ${statusColors[statusInfo.status]}">
-              ${statusLabels[statusInfo.status]}
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColors[bgClass]}"></div>
+            <span style="color: ${statusColors[bgClass]}">
+              ${statusLabels[bgClass]}
             </span>
           </div>
           
@@ -329,8 +335,8 @@ export function VehicleMap({
       const existingMarker = existingMarkers.get(vehicle.device_id);
       
       // Check if this vehicle is speeding (if in active mission)
-      const statusInfo = getVehicleStatusWithPriority(vehicle);
-      let markerStatus: 'moving' | 'idle' | 'offline' | 'unknown' | 'speeding' = statusInfo.status === 'alert' ? 'speeding' : statusInfo.status;
+      const { markerStatus: baseStatus } = getStatusVisual(vehicle);
+      let markerStatus = baseStatus;
       
       if (activeMission && vehicle.device_id === activeMission.vehicleId) {
         // Check against road speed limit
