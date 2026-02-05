@@ -1,4 +1,4 @@
-import { Vehicle } from '@/types/vehicle';
+import { Vehicle, VehicleType } from '@/types/vehicle';
 
 // ============================================
 // DADOS MOCKADOS PARA DESENVOLVIMENTO
@@ -15,6 +15,8 @@ export const MOCK_VEHICLES: Vehicle[] = [
     speed: 45.5,
     address: 'Av. Paulista, 1000 - Bela Vista, São Paulo - SP',
     devicetime: new Date().toISOString(),
+    vehicleType: 'truck' as VehicleType,
+    iconColor: '#3b82f6',
   },
   {
     device_id: 'mock-002',
@@ -24,6 +26,8 @@ export const MOCK_VEHICLES: Vehicle[] = [
     speed: 0,
     address: 'Copacabana, Rio de Janeiro - RJ',
     devicetime: new Date(Date.now() - 300000).toISOString(), // 5 min atrás
+    vehicleType: 'sedan' as VehicleType,
+    iconColor: 'status',
   },
   {
     device_id: 'mock-003',
@@ -33,6 +37,8 @@ export const MOCK_VEHICLES: Vehicle[] = [
     speed: 32.8,
     address: 'Praça da Liberdade, Belo Horizonte - MG',
     devicetime: new Date().toISOString(),
+    vehicleType: 'pickup' as VehicleType,
+    iconColor: '#f97316',
   },
   {
     device_id: 'mock-004',
@@ -42,6 +48,8 @@ export const MOCK_VEHICLES: Vehicle[] = [
     speed: 58.2,
     address: 'Centro Cívico, Curitiba - PR',
     devicetime: new Date().toISOString(),
+    vehicleType: 'motorcycle' as VehicleType,
+    iconColor: '#fbbf24',
   },
   {
     device_id: 'mock-005',
@@ -51,6 +59,8 @@ export const MOCK_VEHICLES: Vehicle[] = [
     speed: 0,
     address: 'Moinhos de Vento, Porto Alegre - RS',
     devicetime: new Date(Date.now() - 1800000).toISOString(), // 30 min atrás
+    vehicleType: 'pickup' as VehicleType,
+    iconColor: 'status',
   },
 ];
 

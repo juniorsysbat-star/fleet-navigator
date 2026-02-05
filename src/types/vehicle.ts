@@ -1,3 +1,5 @@
+export type VehicleType = 'sedan' | 'motorcycle' | 'truck' | 'pickup' | 'tractor' | 'bus';
+
 export interface Vehicle {
   device_id: string;
   device_name: string;
@@ -6,6 +8,8 @@ export interface Vehicle {
   speed: number;
   address: string;
   devicetime: string;
+  vehicleType?: VehicleType;
+  iconColor?: string;
 }
 
 export type VehicleStatus = 'moving' | 'stopped' | 'idle' | 'offline' | 'unknown';
