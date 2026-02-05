@@ -22,8 +22,8 @@
  const STATUS_COLORS = {
   moving: { main: '#10b981', glow: 'rgba(16, 185, 129, 0.5)' },   // Emerald: Moving
   idle: { main: '#eab308', glow: 'rgba(234, 179, 8, 0.5)' },      // Yellow: Stopped
-  offline: { main: '#6b7280', glow: 'rgba(107, 114, 128, 0.5)' }, // Gray: Offline
-  unknown: { main: '#6b7280', glow: 'rgba(107, 114, 128, 0.5)' }, // Gray: Unknown
+  offline: { main: '#9ca3af', glow: 'rgba(156, 163, 175, 0.3)' }, // Gray-400: Offline
+  unknown: { main: '#9ca3af', glow: 'rgba(156, 163, 175, 0.3)' }, // Gray-400: Unknown
   speeding: { main: '#ef4444', glow: 'rgba(239, 68, 68, 0.8)' },  // Red: Alarm/Block
  };
  
