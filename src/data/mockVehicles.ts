@@ -9,25 +9,28 @@ import { Vehicle, VehicleType } from '@/types/vehicle';
 export const MOCK_VEHICLES: Vehicle[] = [
   {
     device_id: 'mock-001',
-    device_name: 'Caminhão 01',
+    device_name: '🚨 Caminhão 01 (BLOQUEADO)',
     latitude: -23.5505,
     longitude: -46.6333,
     speed: 45.5,
-    address: 'Av. Paulista, 1000 - Bela Vista, São Paulo - SP',
+    address: 'ALERTA: Veículo Bloqueado - Av. Paulista, São Paulo - SP',
     devicetime: new Date().toISOString(),
     vehicleType: 'truck' as VehicleType,
     iconColor: '#3b82f6',
+    blocked: true,
+    alarm: 'Bloqueio ativo',
   },
   {
     device_id: 'mock-002',
-    device_name: 'Carro 02',
+    device_name: '🆘 Carro 02 (SOS)',
     latitude: -22.9068,
     longitude: -43.1729,
-    speed: 0,
-    address: 'Copacabana, Rio de Janeiro - RJ',
+    speed: 35,
+    address: 'ALERTA SOS ATIVO - Copacabana, Rio de Janeiro - RJ',
     devicetime: new Date(Date.now() - 300000).toISOString(), // 5 min atrás
     vehicleType: 'sedan' as VehicleType,
     iconColor: 'status',
+    alarm: 'SOS',
   },
   {
     device_id: 'mock-003',
