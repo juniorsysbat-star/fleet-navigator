@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Geofence } from '@/data/mockGeofences';
 import { 
   MapPin, 
@@ -7,22 +8,40 @@ import {
   BellOff,
   Plus,
   X,
-  Minus
+  Minus,
+  Hexagon,
+  Circle,
+  Edit3,
+  Save,
+  Check
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
+
+import { DrawingMode } from '@/hooks/useGeofenceDrawing';
+export type { DrawingMode };
 
 interface GeofencePanelProps {
   geofences: Geofence[];
   isDrawing: boolean;
-  onStartDrawing: () => void;
+  drawingMode: DrawingMode;
+  onStartDrawing: (mode: DrawingMode) => void;
   onCancelDrawing: () => void;
   onDeleteGeofence: (id: string) => void;
   onToggleGeofence: (id: string) => void;
   selectedGeofenceId: string | null;
   onSelectGeofence: (id: string | null) => void;
+  onEditGeofence: (id: string) => void;
+  editingGeofenceId: string | null;
+  onSaveGeofence: (id: string, name: string) => void;
+  onCancelEdit: () => void;
+  pendingGeofence: Geofence | null;
+  onSavePendingGeofence: (name: string) => void;
+  onCancelPendingGeofence: () => void;
   onClose?: () => void;
   onMinimize?: () => void;
 }
@@ -30,15 +49,43 @@ interface GeofencePanelProps {
 export function GeofencePanel({
   geofences,
   isDrawing,
+  drawingMode,
   onStartDrawing,
   onCancelDrawing,
   onDeleteGeofence,
   onToggleGeofence,
   selectedGeofenceId,
   onSelectGeofence,
+  onEditGeofence,
+  editingGeofenceId,
+  onSaveGeofence,
+  onCancelEdit,
+  pendingGeofence,
+  onSavePendingGeofence,
+  onCancelPendingGeofence,
   onClose,
   onMinimize,
 }: GeofencePanelProps) {
+  const [newGeofenceName, setNewGeofenceName] = useState(`Nova Cerca ${geofences.length + 1}`);
+  const [editName, setEditName] = useState('');
+
+  // Reset name when pending geofence changes
+  useEffect(() => {
+    if (pendingGeofence) {
+      setNewGeofenceName(`Nova Cerca ${geofences.length + 1}`);
+    }
+  }, [pendingGeofence, geofences.length]);
+
+  // Set edit name when editing starts
+  useEffect(() => {
+    if (editingGeofenceId) {
+      const geofence = geofences.find(g => g.id === editingGeofenceId);
+      if (geofence) {
+        setEditName(geofence.name);
+      }
+    }
+  }, [editingGeofenceId, geofences]);
+
   return (
     <div className="absolute top-4 right-4 z-[1000] w-80 max-h-[calc(100vh-120px)] flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-right duration-300">
       {/* Header */}
@@ -75,8 +122,18 @@ export function GeofencePanel({
 
         {isDrawing ? (
           <div className="space-y-2">
-            <p className="text-xs text-warning">
-              🎯 Clique no mapa para definir os pontos da cerca. Clique no primeiro ponto para fechar.
+            <p className="text-xs text-warning flex items-center gap-2">
+              {drawingMode === 'polygon' ? (
+                <>
+                  <Hexagon className="w-4 h-4" />
+                  Clique no mapa para definir os pontos. Clique no primeiro ponto para fechar.
+                </>
+              ) : (
+                <>
+                  <Circle className="w-4 h-4" />
+                  Clique no centro e arraste para definir o raio.
+                </>
+              )}
             </p>
             <Button 
               variant="destructive" 
@@ -88,15 +145,77 @@ export function GeofencePanel({
             </Button>
           </div>
         ) : (
-          <Button 
-            className="w-full gap-2" 
-            onClick={onStartDrawing}
-          >
-            <Plus className="w-4 h-4" />
-            Desenhar Nova Cerca
-          </Button>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground mb-2">Escolha o tipo de cerca:</p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button 
+                variant="outline"
+                size="sm"
+                className="gap-2 hover:border-accent/50" 
+                onClick={() => onStartDrawing('polygon')}
+              >
+                <Hexagon className="w-4 h-4" />
+                Polígono
+              </Button>
+              <Button 
+                variant="outline"
+                size="sm"
+                className="gap-2 hover:border-accent/50" 
+                onClick={() => onStartDrawing('circle')}
+              >
+                <Circle className="w-4 h-4" />
+                Círculo
+              </Button>
+            </div>
+          </div>
         )}
       </div>
+
+      {/* Pending Geofence (just drawn, needs to be saved) */}
+      {pendingGeofence && (
+        <div className="p-4 border-b border-border bg-accent/10">
+          <div className="flex items-center gap-2 mb-3">
+            <Check className="w-4 h-4 text-success" />
+            <span className="text-sm font-medium text-success">Cerca desenhada!</span>
+          </div>
+          <div className="space-y-3">
+            <Input
+              value={newGeofenceName}
+              onChange={(e) => setNewGeofenceName(e.target.value)}
+              placeholder="Nome da cerca"
+              className="bg-muted border-border text-sm"
+            />
+            <div className="text-xs text-muted-foreground">
+              {pendingGeofence.type === 'circle' 
+                ? `Raio: ${pendingGeofence.radius?.toFixed(0)}m`
+                : `${pendingGeofence.coordinates.length} pontos`
+              }
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                size="sm" 
+                className="flex-1 gap-1 bg-success hover:bg-success/90"
+                onClick={() => {
+                  onSavePendingGeofence(newGeofenceName);
+                  toast.success('Cerca salva com sucesso!', {
+                    description: `"${newGeofenceName}" foi adicionada às suas cercas virtuais.`
+                  });
+                }}
+              >
+                <Save className="w-3 h-3" />
+                Salvar Cerca
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={onCancelPendingGeofence}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Geofence List */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-cyber">
@@ -131,11 +250,26 @@ export function GeofencePanel({
                     className="w-3 h-3 rounded-full"
                     style={{ backgroundColor: geofence.color }}
                   />
-                  <span className="font-semibold text-sm text-foreground">
-                    {geofence.name}
-                  </span>
+                    {editingGeofenceId === geofence.id ? (
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="h-6 text-sm bg-muted border-border"
+                        autoFocus
+                      />
+                    ) : (
+                      <span className="font-semibold text-sm text-foreground">
+                        {geofence.name}
+                      </span>
+                    )}
                 </div>
                 <div className="flex items-center gap-1">
+                    {geofence.type === 'circle' && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
+                        {geofence.radius?.toFixed(0)}m
+                      </span>
+                    )}
                   {geofence.alertOnEnter || geofence.alertOnExit ? (
                     <Bell className="w-3 h-3 text-warning" />
                   ) : (
@@ -166,7 +300,48 @@ export function GeofencePanel({
               </div>
 
               {selectedGeofenceId === geofence.id && (
-                <div className="flex gap-2 mt-3 pt-3 border-t border-border animate-fade-in">
+                <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border animate-fade-in">
+                  {editingGeofenceId === geofence.id ? (
+                    <>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="flex-1 gap-1 text-xs bg-success hover:bg-success/90"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSaveGeofence(geofence.id, editName);
+                          toast.success('Cerca atualizada!');
+                        }}
+                      >
+                        <Save className="w-3 h-3" />
+                        Salvar
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1 text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onCancelEdit();
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1 text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditGeofence(geofence.id);
+                        }}
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        Editar
+                      </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -186,10 +361,13 @@ export function GeofencePanel({
                     onClick={(e) => {
                       e.stopPropagation();
                       onDeleteGeofence(geofence.id);
+                      toast.info('Cerca removida');
                     }}
                   >
                     <Trash2 className="w-3 h-3" />
                   </Button>
+                    </>
+                  )}
                 </div>
               )}
             </div>

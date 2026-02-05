@@ -8,6 +8,7 @@ import { Mission } from '@/types/mission';
  import { Hexagon } from 'lucide-react';
 import { getCurrentRoadSpeedLimit } from '@/services/routingService';
 import { createVehicleIcon } from './map/vehicleIcons';
+import { useGeofenceDrawing, DrawingMode, GeofenceDrawResult } from '@/hooks/useGeofenceDrawing';
 import 'leaflet/dist/leaflet.css';
 
 // Fix default marker icons
@@ -31,9 +32,12 @@ interface VehicleMapProps {
   onVehicleSelect: (id: string) => void;
   trailData?: { lat: number; lng: number }[] | null;
   geofences?: Geofence[];
+  pendingGeofence?: Geofence | null;
   isDrawingGeofence?: boolean;
-  onGeofenceDrawn?: (coordinates: { lat: number; lng: number }[]) => void;
+  drawingMode?: DrawingMode;
+  onGeofenceDrawn?: (result: GeofenceDrawResult) => void;
   selectedGeofenceId?: string | null;
+  editingGeofenceId?: string | null;
   activeMission?: Mission | null;
  showGeofenceButton?: boolean;
  onOpenGeofencePanel?: () => void;
@@ -45,9 +49,12 @@ export function VehicleMap({
   onVehicleSelect,
   trailData,
   geofences = [],
+  pendingGeofence,
   isDrawingGeofence = false,
+  drawingMode = null,
   onGeofenceDrawn,
   selectedGeofenceId,
+  editingGeofenceId,
    activeMission,
    showGeofenceButton = false,
    onOpenGeofencePanel
@@ -58,9 +65,7 @@ export function VehicleMap({
   const polylineRef = useRef<L.Polyline | null>(null);
   const trailMarkersRef = useRef<L.Marker[]>([]);
   const geofenceLayersRef = useRef<Map<string, L.Polygon>>(new Map());
-  const drawingPointsRef = useRef<{ lat: number; lng: number }[]>([]);
-  const drawingLayerRef = useRef<L.Polygon | null>(null);
-  const drawingMarkersRef = useRef<L.Marker[]>([]);
+  const pendingGeofenceLayerRef = useRef<L.Polygon | L.Circle | null>(null);
   const missionRouteRef = useRef<L.Polyline | null>(null);
   const missionCorridorRef = useRef<L.Polyline | null>(null);
   const missionMarkersRef = useRef<L.Marker[]>([]);
@@ -199,16 +204,14 @@ export function VehicleMap({
     `;
   };
 
-  // Clear drawing state
-  const clearDrawingState = useCallback(() => {
-    drawingPointsRef.current = [];
-    if (drawingLayerRef.current) {
-      drawingLayerRef.current.remove();
-      drawingLayerRef.current = null;
-    }
-    drawingMarkersRef.current.forEach(m => m.remove());
-    drawingMarkersRef.current = [];
-  }, []);
+  // Use the geofence drawing hook
+  useGeofenceDrawing({
+    map: mapRef.current,
+    isMapReady,
+    isDrawing: isDrawingGeofence,
+    drawingMode,
+    onGeofenceDrawn,
+  });
 
   // Initialize map
   useEffect(() => {
@@ -274,78 +277,6 @@ export function VehicleMap({
      checkIfCenteredOnVehicle();
    }, [checkIfCenteredOnVehicle, userHasInteracted, vehicles]);
 
-  // Handle geofence drawing
-  useEffect(() => {
-    if (!mapRef.current || !isMapReady) return;
-
-    const map = mapRef.current;
-
-    if (isDrawingGeofence) {
-      map.getContainer().style.cursor = 'crosshair';
-      
-      const onClick = (e: L.LeafletMouseEvent) => {
-        const point = { lat: e.latlng.lat, lng: e.latlng.lng };
-        
-        // Check if clicking near first point to close polygon
-        if (drawingPointsRef.current.length >= 3) {
-          const firstPoint = drawingPointsRef.current[0];
-          const distance = map.latLngToLayerPoint(e.latlng)
-            .distanceTo(map.latLngToLayerPoint(L.latLng(firstPoint.lat, firstPoint.lng)));
-          
-          if (distance < 20) {
-            // Close polygon
-            if (onGeofenceDrawn) {
-              onGeofenceDrawn(drawingPointsRef.current);
-            }
-            clearDrawingState();
-            return;
-          }
-        }
-
-        drawingPointsRef.current.push(point);
-
-        // Add marker for this point
-        const marker = L.marker([point.lat, point.lng], {
-          icon: L.divIcon({
-            className: 'drawing-marker',
-            html: `<div style="width: 12px; height: 12px; background: #00bfff; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 10px #00bfff;"></div>`,
-            iconSize: [12, 12],
-            iconAnchor: [6, 6],
-          }),
-        }).addTo(map);
-        drawingMarkersRef.current.push(marker);
-
-        // Update polygon preview
-        if (drawingLayerRef.current) {
-          drawingLayerRef.current.remove();
-        }
-
-        if (drawingPointsRef.current.length >= 2) {
-          drawingLayerRef.current = L.polygon(
-            drawingPointsRef.current.map(p => [p.lat, p.lng] as L.LatLngExpression),
-            {
-              color: '#00bfff',
-              weight: 2,
-              fillColor: '#00bfff',
-              fillOpacity: 0.2,
-              dashArray: '5, 10',
-            }
-          ).addTo(map);
-        }
-      };
-
-      map.on('click', onClick);
-
-      return () => {
-        map.off('click', onClick);
-        map.getContainer().style.cursor = '';
-        clearDrawingState();
-      };
-    } else {
-      map.getContainer().style.cursor = '';
-      clearDrawingState();
-    }
-  }, [isDrawingGeofence, isMapReady, onGeofenceDrawn, clearDrawingState]);
 
   // Ref to track if initial centering has been done
   const initialCenterDoneRef = useRef(false);
@@ -603,40 +534,108 @@ export function VehicleMap({
       
       if (existingLayer) {
         existingLayer.remove();
+        existingLayers.delete(geofence.id);
       }
 
       if (geofence.isActive || selectedGeofenceId === geofence.id) {
-        const polygon = L.polygon(
-          geofence.coordinates.map(c => [c.lat, c.lng] as L.LatLngExpression),
-          {
-            color: geofence.color,
-            weight: selectedGeofenceId === geofence.id ? 3 : 2,
-            fillColor: geofence.color,
-            fillOpacity: selectedGeofenceId === geofence.id ? 0.3 : 0.15,
-            dashArray: geofence.isActive ? undefined : '5, 10',
-          }
-        ).addTo(map);
+        let layer: L.Polygon | L.Circle;
+        
+        // Create circle or polygon based on type
+        if (geofence.type === 'circle' && geofence.center && geofence.radius) {
+          layer = L.circle(
+            [geofence.center.lat, geofence.center.lng],
+            {
+              radius: geofence.radius,
+              color: geofence.color,
+              weight: selectedGeofenceId === geofence.id ? 3 : 2,
+              fillColor: geofence.color,
+              fillOpacity: selectedGeofenceId === geofence.id ? 0.3 : 0.15,
+              dashArray: geofence.isActive ? undefined : '5, 10',
+            }
+          ).addTo(map);
+        } else {
+          layer = L.polygon(
+            geofence.coordinates.map(c => [c.lat, c.lng] as L.LatLngExpression),
+            {
+              color: geofence.color,
+              weight: selectedGeofenceId === geofence.id ? 3 : 2,
+              fillColor: geofence.color,
+              fillOpacity: selectedGeofenceId === geofence.id ? 0.3 : 0.15,
+              dashArray: geofence.isActive ? undefined : '5, 10',
+            }
+          ).addTo(map);
+        }
 
-        polygon.bindPopup(`
+        layer.bindPopup(`
           <div style="font-family: 'Rajdhani', sans-serif;">
             <h3 style="font-family: 'Orbitron', sans-serif; font-weight: 600; margin: 0 0 8px 0; color: ${geofence.color};">
               ${geofence.name}
             </h3>
             <p style="margin: 0; font-size: 12px; color: hsl(220, 15%, 55%);">
               ${geofence.isActive ? '✅ Ativa' : '⏸️ Inativa'}
+              ${geofence.type === 'circle' ? ` • Raio: ${geofence.radius?.toFixed(0)}m` : ''}
             </p>
           </div>
         `);
 
-        existingLayers.set(geofence.id, polygon);
+        existingLayers.set(geofence.id, layer as L.Polygon);
 
         // Fly to selected geofence
         if (selectedGeofenceId === geofence.id) {
-          map.fitBounds(polygon.getBounds(), { padding: [50, 50] });
+          map.fitBounds(layer.getBounds(), { padding: [50, 50] });
         }
       }
     });
   }, [geofences, selectedGeofenceId, isMapReady]);
+
+  // Handle pending geofence display (before user saves)
+  useEffect(() => {
+    if (!mapRef.current || !isMapReady) return;
+
+    const map = mapRef.current;
+
+    // Clear existing pending layer
+    if (pendingGeofenceLayerRef.current) {
+      pendingGeofenceLayerRef.current.remove();
+      pendingGeofenceLayerRef.current = null;
+    }
+
+    if (pendingGeofence) {
+      let layer: L.Polygon | L.Circle;
+      
+      if (pendingGeofence.type === 'circle' && pendingGeofence.center && pendingGeofence.radius) {
+        layer = L.circle(
+          [pendingGeofence.center.lat, pendingGeofence.center.lng],
+          {
+            radius: pendingGeofence.radius,
+            color: pendingGeofence.color,
+            weight: 3,
+            fillColor: pendingGeofence.color,
+            fillOpacity: 0.3,
+            dashArray: '10, 5',
+          }
+        ).addTo(map);
+      } else if (pendingGeofence.coordinates.length > 0) {
+        layer = L.polygon(
+          pendingGeofence.coordinates.map(c => [c.lat, c.lng] as L.LatLngExpression),
+          {
+            color: pendingGeofence.color,
+            weight: 3,
+            fillColor: pendingGeofence.color,
+            fillOpacity: 0.3,
+            dashArray: '10, 5',
+          }
+        ).addTo(map);
+      } else {
+        return;
+      }
+
+      pendingGeofenceLayerRef.current = layer;
+
+      // Fly to the pending geofence
+      map.fitBounds(layer.getBounds(), { padding: [50, 50] });
+    }
+  }, [pendingGeofence, isMapReady]);
 
   // Handle mission route display
   useEffect(() => {
