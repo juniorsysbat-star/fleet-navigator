@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { useVehicles } from '@/hooks/useVehicles';
+import { useVehiclesContext } from '@/contexts/VehiclesContext';
 import { VehicleMap } from '@/components/VehicleMap';
 import { VehicleSidebar } from '@/components/VehicleSidebar';
 import { VehicleDetailPanel } from '@/components/VehicleDetailPanel';
@@ -11,7 +11,7 @@ import { AlertCircle, Database } from 'lucide-react';
 import { generateMockTrail, MOCK_TRAILS } from '@/data/mockVehicles';
 import { MOCK_GEOFENCES, Geofence } from '@/data/mockGeofences';
 import { Mission } from '@/types/mission';
-import { DeviceFormData } from '@/components/admin/DeviceModal';
+import type { DeviceFormData } from '@/components/admin/DeviceModal';
 import { toast } from '@/hooks/use-toast';
 
 type PanelState = 'open' | 'minimized' | 'closed';
@@ -49,7 +49,7 @@ const Dashboard = () => {
     mission: 'closed',
   });
   
-  const { vehicles, isLoading, error, lastUpdate, movingCount, stoppedCount, isUsingMockData, refetch, updateVehicle, addVehicle } = useVehicles();
+  const { vehicles, isLoading, error, lastUpdate, movingCount, stoppedCount, isUsingMockData, refetch, updateVehicle, addVehicle } = useVehiclesContext();
   
   const selectedVehicle = vehicles.find(v => v.device_id === selectedVehicleId) || null;
 
@@ -241,14 +241,14 @@ const Dashboard = () => {
     if (device.id) {
       updateVehicle(device);
       toast({
-        title: "✅ Veículo atualizado",
-        description: `${device.plate || device.name} foi salvo com sucesso (Modo Local)`,
+        title: "Veículo salvo com sucesso (Modo Local)",
+        description: `${device.plate || device.name}`,
       });
     } else {
       const newVehicle = addVehicle(device);
       toast({
-        title: "✅ Veículo cadastrado",
-        description: `${device.plate || device.name} foi adicionado com sucesso (Modo Local)`,
+        title: "Veículo salvo com sucesso (Modo Local)",
+        description: `${device.plate || device.name}`,
       });
       // Select the new vehicle
       setSelectedVehicleId(newVehicle.device_id);

@@ -21,6 +21,7 @@
  import { useCustomization } from '@/contexts/CustomizationContext';
  import { useLanguage } from '@/contexts/LanguageContext';
  import { useAuth } from '@/contexts/AuthContext';
+  import { useVehiclesContext } from '@/contexts/VehiclesContext';
  import { DeviceModal, DeviceFormData } from '@/components/admin/DeviceModal';
  import { toast } from '@/hooks/use-toast';
  
@@ -32,6 +33,7 @@
    const { settings } = useCustomization();
    const { t, isRTL } = useLanguage();
    const { user, logout } = useAuth();
+    const { addVehicle, isUsingMockData, isDemoMode } = useVehiclesContext();
  
    const navItems = [
      { path: '/', icon: Map, label: settings.moduleNames.tracking || t('nav.tracking') },
@@ -57,11 +59,21 @@
    const allNavItems = [...navItems, ...adminOnlyItems];
  
    const handleAddDevice = (device: DeviceFormData) => {
-     console.log('New device:', device);
-     toast({
-       title: 'Dispositivo Adicionado!',
-       description: `${device.name} (IMEI: ${device.imei}) foi cadastrado com sucesso.`,
-     });
+      // Em modo demo/mock, fazemos persistência local durante a sessão para validar UX.
+      if (isDemoMode || isUsingMockData) {
+        addVehicle(device);
+        toast({
+          title: 'Veículo salvo com sucesso (Modo Local)',
+          description: `${device.plate || device.name}`,
+        });
+        return;
+      }
+
+      console.log('New device:', device);
+      toast({
+        title: 'Dispositivo Adicionado!',
+        description: `${device.name} (IMEI: ${device.imei}) foi cadastrado com sucesso.`,
+      });
    };
  
    const handleLogout = () => {

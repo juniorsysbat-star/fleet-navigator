@@ -22,6 +22,7 @@ import { AnnouncementModal } from "@/components/announcements/AnnouncementModal"
 import MobilePhotoCapture from "./pages/MobilePhotoCapture";
 import { SmartNotificationCenter } from "@/components/notifications/SmartNotificationCenter";
 import { PendingItemsModal } from "@/components/notifications/PendingItemsModal";
+  import { VehiclesProvider } from "@/contexts/VehiclesContext";
  
  const queryClient = new QueryClient();
  
@@ -36,59 +37,61 @@ import { PendingItemsModal } from "@/components/notifications/PendingItemsModal"
             <AnnouncementModal />
            <SmartNotificationCenter />
            <PendingItemsModal />
-             <BrowserRouter>
-               <Routes>
-                 <Route path="/login" element={<Login />} />
-                 <Route path="/" element={
-                   <AppLayout>
-                     <Dashboard />
-                   </AppLayout>
-                 } />
-                 <Route path="/analytics" element={
-                   <AppLayout>
-                     <Analytics />
-                   </AppLayout>
-                 } />
-                 <Route path="/billing" element={
-                   <AppLayout>
-                     <Billing />
-                   </AppLayout>
-                 } />
-                 <Route path="/admin/users" element={
-                   <AppLayout>
-                     <AdminUsers />
-                   </AppLayout>
-                 } />
-                 <Route path="/settings" element={
-                   <AppLayout>
-                     <Settings />
-                   </AppLayout>
-                 } />
-                 <Route path="/reseller-billing" element={
-                   <AppLayout>
-                     <ResellerBilling />
-                   </AppLayout>
-                 } />
-              <Route path="/announcements" element={
-                <AppLayout>
-                  <Announcements />
-                </AppLayout>
-              } />
-              <Route path="/drivers" element={
-                <AppLayout>
-                  <Drivers />
-                </AppLayout>
-              } />
-              <Route path="/maintenances" element={
-                <AppLayout>
-                  <Maintenances />
-                </AppLayout>
-              } />
-               <Route path="/mobile-photo/:sessionId" element={<MobilePhotoCapture />} />
-                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                 <Route path="*" element={<NotFound />} />
-               </Routes>
-             </BrowserRouter>
+            <VehiclesProvider>
+              <BrowserRouter>
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/" element={
+                    <AppLayout>
+                      <Dashboard />
+                    </AppLayout>
+                  } />
+                  <Route path="/analytics" element={
+                    <AppLayout>
+                      <Analytics />
+                    </AppLayout>
+                  } />
+                  <Route path="/billing" element={
+                    <AppLayout>
+                      <Billing />
+                    </AppLayout>
+                  } />
+                  <Route path="/admin/users" element={
+                    <AppLayout>
+                      <AdminUsers />
+                    </AppLayout>
+                  } />
+                  <Route path="/settings" element={
+                    <AppLayout>
+                      <Settings />
+                    </AppLayout>
+                  } />
+                  <Route path="/reseller-billing" element={
+                    <AppLayout>
+                      <ResellerBilling />
+                    </AppLayout>
+                  } />
+                  <Route path="/announcements" element={
+                    <AppLayout>
+                      <Announcements />
+                    </AppLayout>
+                  } />
+                  <Route path="/drivers" element={
+                    <AppLayout>
+                      <Drivers />
+                    </AppLayout>
+                  } />
+                  <Route path="/maintenances" element={
+                    <AppLayout>
+                      <Maintenances />
+                    </AppLayout>
+                  } />
+                  <Route path="/mobile-photo/:sessionId" element={<MobilePhotoCapture />} />
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </VehiclesProvider>
            </TooltipProvider>
          </QueryClientProvider>
        </LanguageProvider>
