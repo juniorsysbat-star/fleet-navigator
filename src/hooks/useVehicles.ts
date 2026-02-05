@@ -108,7 +108,7 @@ export function useVehicles() {
       try {
         // Chama a API de verdade
         await apiUpdateVehicle(device.id, {
-          id: device.id,
+          id: Number(device.id),
           name: device.plate || device.name,
           uniqueId: device.imei,
         });
