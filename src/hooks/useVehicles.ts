@@ -64,7 +64,11 @@ import type { DeviceFormData } from '@/components/admin/DeviceModal';
   const processVehicles = (data: Vehicle[], isMock: boolean = false): VehicleWithStatus[] => {
     return data.map((vehicle) => {
       // Para dados mockados, simular ignição baseado na velocidade
-      const ignition = isMock ? vehicle.speed > 0 : undefined;
+      // Except for alert vehicles that might have ignition OFF with speed > 0 (violation)
+      const extendedVehicle = vehicle as Vehicle & { blocked?: boolean; alarm?: string | null; ignition?: boolean };
+      const ignition = extendedVehicle.ignition !== undefined 
+        ? extendedVehicle.ignition 
+        : (isMock ? vehicle.speed > 0 : undefined);
       const batteryLevel = isMock ? Math.floor(Math.random() * 30) + 70 : undefined;
       
       return {
@@ -73,6 +77,8 @@ import type { DeviceFormData } from '@/components/admin/DeviceModal';
         status: vehicle.speed > 5 ? 'moving' : vehicle.speed > 0 ? 'idle' : 'stopped',
         ignition,
         batteryLevel,
+        blocked: extendedVehicle.blocked,
+        alarm: extendedVehicle.alarm,
       };
     });
   };

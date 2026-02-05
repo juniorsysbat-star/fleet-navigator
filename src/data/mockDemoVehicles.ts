@@ -26,6 +26,48 @@
  export function generateDemoVehicles(): Vehicle[] {
    const vehicles: Vehicle[] = [];
  
+  // Veículo de ALERTA - Bloqueado (aparece vermelho)
+  vehicles.push({
+    device_id: 'demo-alert-001',
+    device_name: '🚨 VEÍCULO BLOQUEADO',
+    latitude: -23.5605,
+    longitude: -46.6533,
+    speed: 0,
+    address: 'São Paulo - SP (BLOQUEADO)',
+    devicetime: new Date().toISOString(),
+    vehicleType: 'truck',
+    iconColor: 'status',
+    blocked: true,
+  } as Vehicle & { blocked: boolean });
+
+  // Veículo de ALERTA - SOS Ativo (aparece vermelho)
+  vehicles.push({
+    device_id: 'demo-alert-002',
+    device_name: '🆘 CAMINHÃO SOS',
+    latitude: -22.9168,
+    longitude: -43.1829,
+    speed: 45,
+    address: 'Rio de Janeiro - RJ (SOS ATIVO)',
+    devicetime: new Date().toISOString(),
+    vehicleType: 'truck',
+    iconColor: 'status',
+    alarm: 'SOS',
+  } as Vehicle & { alarm: string });
+
+  // Veículo de ALERTA - Violação (ignição OFF + movimento = guincho)
+  vehicles.push({
+    device_id: 'demo-alert-003',
+    device_name: '⚠️ POSSÍVEL GUINCHO',
+    latitude: -19.9267,
+    longitude: -43.9445,
+    speed: 35,
+    address: 'Belo Horizonte - MG (VIOLAÇÃO)',
+    devicetime: new Date().toISOString(),
+    vehicleType: 'sedan',
+    iconColor: 'status',
+    ignition: false,
+  } as Vehicle & { ignition: boolean });
+
    for (let i = 1; i <= 50; i++) {
      const city = BRAZIL_CITIES[Math.floor(Math.random() * BRAZIL_CITIES.length)];
      const type = VEHICLE_TYPES[Math.floor(Math.random() * VEHICLE_TYPES.length)];
