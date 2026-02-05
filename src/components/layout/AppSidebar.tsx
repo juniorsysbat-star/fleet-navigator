@@ -9,7 +9,6 @@
    ChevronRight,
    Users,
    Plus,
-   LogOut,
    Building2,
    Megaphone,
    UserCheck,
@@ -24,7 +23,6 @@
  import { useAuth } from '@/contexts/AuthContext';
  import { DeviceModal, DeviceFormData } from '@/components/admin/DeviceModal';
  import { toast } from '@/hooks/use-toast';
-import { Separator } from '@/components/ui/separator';
  
  export function AppSidebar() {
    const [isCollapsed, setIsCollapsed] = useState(false);
@@ -33,30 +31,28 @@ import { Separator } from '@/components/ui/separator';
    const navigate = useNavigate();
    const { settings } = useCustomization();
    const { t, isRTL } = useLanguage();
-   const { user, logout, isDemoMode } = useAuth();
+   const { user, logout } = useAuth();
  
    const navItems = [
      { path: '/', icon: Map, label: settings.moduleNames.tracking || t('nav.tracking') },
      { path: '/analytics', icon: Brain, label: settings.moduleNames.analytics || t('nav.analytics') },
-    { path: '/drivers', icon: UserCheck, label: 'Motoristas' },
-    { path: '/maintenances', icon: Wrench, label: 'Manutenções' },
+     { path: '/drivers', icon: UserCheck, label: 'Motoristas' },
+     { path: '/maintenances', icon: Wrench, label: 'Manutenções' },
      { path: '/billing', icon: CreditCard, label: settings.moduleNames.billing || t('nav.billing') },
      { path: '/admin/users', icon: Users, label: settings.moduleNames.users || t('nav.users') },
      { path: '/settings', icon: Settings, label: settings.moduleNames.settings || t('nav.settings') },
    ];
  
-  // Menus exclusivos por role
-  const adminOnlyItems = [];
-  
-  // Comunicados - visível para admin, manager e embarcador
-  if (user?.role === 'super_admin' || user?.role === 'manager' || user?.role === 'embarcador') {
-    adminOnlyItems.push({ path: '/announcements', icon: Megaphone, label: 'Comunicados' });
-  }
-  
-  // Financeiro Revenda - apenas super admin
-  if (user?.role === 'super_admin') {
-    adminOnlyItems.push({ path: '/reseller-billing', icon: Building2, label: 'Financeiro Revenda' });
-  }
+   // Menus exclusivos por role
+   const adminOnlyItems: typeof navItems = [];
+   
+   if (user?.role === 'super_admin' || user?.role === 'manager' || user?.role === 'embarcador') {
+     adminOnlyItems.push({ path: '/announcements', icon: Megaphone, label: 'Comunicados' });
+   }
+   
+   if (user?.role === 'super_admin') {
+     adminOnlyItems.push({ path: '/reseller-billing', icon: Building2, label: 'Financeiro Revenda' });
+   }
  
    const allNavItems = [...navItems, ...adminOnlyItems];
  
@@ -69,13 +65,12 @@ import { Separator } from '@/components/ui/separator';
    };
  
    const handleLogout = () => {
-    // Clear any localStorage data
-    localStorage.clear();
+     localStorage.clear();
      logout();
-    toast({
-      title: '👋 Até logo!',
-      description: 'Você saiu com segurança.',
-    });
+     toast({
+       title: '👋 Até logo!',
+       description: 'Você saiu com segurança.',
+     });
      navigate('/login');
    };
  
@@ -207,64 +202,62 @@ import { Separator } from '@/components/ui/separator';
            })}
          </nav>
  
-          {/* Footer - Logout & Collapse */}
-          <div className="mt-auto border-t border-sidebar-border">
-            {/* Logout Section - Always visible when logged in */}
-            {user && (
-              <div className="p-3 border-b border-sidebar-border/50">
-                {isCollapsed ? (
-                  <Tooltip delayDuration={0}>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center justify-center p-3 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive transition-all border border-destructive/20"
-                      >
-                        <Power className="w-5 h-5" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="bg-destructive text-destructive-foreground">
-                      <span className="font-semibold">Sair do Sistema</span>
-                    </TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all text-sm font-semibold border border-destructive/20"
-                  >
-                    <Power className="w-4 h-4" />
-                    <span>Sair do Sistema</span>
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Collapse Toggle */}
-            <div className="p-3 space-y-2">
-              <button
-                onClick={() => setIsCollapsed(!isCollapsed)}
-                className={cn(
-                  "w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
-                  "text-muted-foreground hover:text-foreground hover:bg-secondary/50 border border-transparent hover:border-border",
-                  isRTL && "flex-row-reverse"
-                )}
-              >
-                {isCollapsed ? (
-                  <ChevronRight className={cn("w-4 h-4", isRTL && "rotate-180")} />
-                ) : (
-                  <>
-                    <ChevronLeft className={cn("w-4 h-4", isRTL && "rotate-180")} />
-                    <span className="text-xs font-medium">{t('nav.collapse')}</span>
-                  </>
-                )}
-              </button>
-
-              {!isCollapsed && (
-                <p className="text-[8px] text-muted-foreground/60 text-center leading-tight mt-2">
-                  Desenvolvido por DATA OMEGA TECNOLOGIA MÓVEL LTDA.
-                </p>
-              )}
-            </div>
-          </div>
+         {/* Footer - Logout & Collapse */}
+         <div className="mt-auto border-t border-sidebar-border">
+           {/* Logout Section - Always visible */}
+           <div className="p-3 border-b border-sidebar-border/50">
+             {isCollapsed ? (
+               <Tooltip delayDuration={0}>
+                 <TooltipTrigger asChild>
+                   <button
+                     onClick={handleLogout}
+                     className="w-full flex items-center justify-center p-3 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive transition-all border border-destructive/20"
+                   >
+                     <Power className="w-5 h-5" />
+                   </button>
+                 </TooltipTrigger>
+                 <TooltipContent side="right" className="bg-destructive text-destructive-foreground">
+                   <span className="font-semibold">Sair do Sistema</span>
+                 </TooltipContent>
+               </Tooltip>
+             ) : (
+               <button
+                 onClick={handleLogout}
+                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all text-sm font-semibold border border-destructive/20"
+               >
+                 <Power className="w-4 h-4" />
+                 <span>Sair do Sistema</span>
+               </button>
+             )}
+           </div>
+ 
+           {/* Collapse Toggle */}
+           <div className="p-3 space-y-2">
+             <button
+               onClick={() => setIsCollapsed(!isCollapsed)}
+               className={cn(
+                 "w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
+                 "text-muted-foreground hover:text-foreground hover:bg-secondary/50 border border-transparent hover:border-border",
+                 isRTL && "flex-row-reverse"
+               )}
+             >
+               {isCollapsed ? (
+                 <ChevronRight className={cn("w-4 h-4", isRTL && "rotate-180")} />
+               ) : (
+                 <>
+                   <ChevronLeft className={cn("w-4 h-4", isRTL && "rotate-180")} />
+                   <span className="text-xs font-medium">{t('nav.collapse')}</span>
+                 </>
+               )}
+             </button>
+ 
+             {!isCollapsed && (
+               <p className="text-[8px] text-muted-foreground/60 text-center leading-tight mt-2">
+                 Desenvolvido por DATA OMEGA TECNOLOGIA MÓVEL LTDA.
+               </p>
+             )}
+           </div>
+         </div>
        </aside>
  
        <DeviceModal
