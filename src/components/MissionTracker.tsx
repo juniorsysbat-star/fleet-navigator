@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigation, Clock, Route, AlertTriangle, CheckCircle, XCircle, Gauge, Zap } from 'lucide-react';
+import { Navigation, Clock, Route, AlertTriangle, CheckCircle, XCircle, Gauge, Zap, Minus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Mission } from '@/types/mission';
 import { VehicleWithStatus } from '@/types/vehicle';
@@ -10,6 +10,7 @@ interface MissionTrackerProps {
   vehicle: VehicleWithStatus | undefined;
   onClose: () => void;
   onCancelMission: () => void;
+  onMinimize?: () => void;
 }
 
 interface RoadSpeedInfo {
@@ -23,7 +24,8 @@ export function MissionTracker({
   mission, 
   vehicle, 
   onClose,
-  onCancelMission 
+  onCancelMission,
+  onMinimize,
 }: MissionTrackerProps) {
   const [isDeviation, setIsDeviation] = useState(false);
   const [isSpeedViolation, setIsSpeedViolation] = useState(false);
@@ -154,14 +156,24 @@ export function MissionTracker({
               </p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="h-7 px-2 text-xs"
-          >
-            <XCircle className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {onMinimize && (
+              <button
+                onClick={onMinimize}
+                className="p-1.5 rounded-md hover:bg-secondary/80 transition-colors text-muted-foreground hover:text-foreground"
+                title="Minimizar"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-md hover:bg-destructive/20 transition-colors text-muted-foreground hover:text-destructive"
+              title="Fechar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Status Banner */}

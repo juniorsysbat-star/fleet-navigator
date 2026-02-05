@@ -3,13 +3,14 @@ import { VehicleCard } from './VehicleCard';
 import { 
   Car, 
   Navigation, 
-  ParkingCircle, 
   RefreshCw, 
   Activity,
   Search,
   Radio,
   Wifi,
-  WifiOff
+  WifiOff,
+  X,
+  Minus
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,8 @@ interface VehicleSidebarProps {
   movingCount: number;
   stoppedCount: number;
   onRefresh: () => void;
+  onClose?: () => void;
+  onMinimize?: () => void;
 }
 
 export function VehicleSidebar({
@@ -34,6 +37,8 @@ export function VehicleSidebar({
   movingCount,
   stoppedCount,
   onRefresh,
+  onClose,
+  onMinimize,
 }: VehicleSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'moving' | 'idle' | 'offline'>('all');
@@ -71,21 +76,43 @@ export function VehicleSidebar({
       {/* Header */}
       <div className="p-4 border-b border-sidebar-border">
         {/* Logo */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-accent/20 to-primary/20 flex items-center justify-center border border-accent/30 relative">
-            <Navigation className="w-5 h-5 text-accent" />
-            <span className="absolute -top-1 -right-1 w-3 h-3">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-75 animate-ping" />
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-success" />
-            </span>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-accent/20 to-primary/20 flex items-center justify-center border border-accent/30 relative">
+              <Navigation className="w-5 h-5 text-accent" />
+              <span className="absolute -top-1 -right-1 w-3 h-3">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-75 animate-ping" />
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-success" />
+              </span>
+            </div>
+            <div>
+              <h1 className="font-display font-bold text-base text-foreground tracking-wider">
+                COMMAND CENTER
+              </h1>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                Fleet Tracking System
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-display font-bold text-base text-foreground tracking-wider">
-              COMMAND CENTER
-            </h1>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
-              Fleet Tracking System
-            </p>
+          <div className="flex items-center gap-1">
+            {onMinimize && (
+              <button
+                onClick={onMinimize}
+                className="p-1.5 rounded-md hover:bg-secondary/80 transition-colors text-muted-foreground hover:text-foreground"
+                title="Minimizar"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+            )}
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-md hover:bg-destructive/20 transition-colors text-muted-foreground hover:text-destructive"
+                title="Fechar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 

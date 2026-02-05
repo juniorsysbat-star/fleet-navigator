@@ -10,7 +10,8 @@ import {
   Lock,
   Car,
   Navigation,
-  Rocket
+  Rocket,
+  Minus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,7 @@ interface VehicleDetailPanelProps {
   onShowTrail: (vehicleId: string) => void;
   isTrailVisible: boolean;
   onOpenMissionPlanner: () => void;
+  onMinimize?: () => void;
 }
 
 export function VehicleDetailPanel({ 
@@ -30,7 +32,8 @@ export function VehicleDetailPanel({
   onClose, 
   onShowTrail,
   isTrailVisible,
-  onOpenMissionPlanner
+  onOpenMissionPlanner,
+  onMinimize,
 }: VehicleDetailPanelProps) {
   if (!vehicle) return null;
 
@@ -81,12 +84,24 @@ export function VehicleDetailPanel({
               </div>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-secondary/50 transition-colors text-muted-foreground hover:text-foreground"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            {onMinimize && (
+              <button
+                onClick={onMinimize}
+                className="p-1.5 rounded-md hover:bg-secondary/80 transition-colors text-muted-foreground hover:text-foreground"
+                title="Minimizar"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-md hover:bg-destructive/20 transition-colors text-muted-foreground hover:text-destructive"
+              title="Fechar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
 
