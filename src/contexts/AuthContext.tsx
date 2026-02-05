@@ -37,7 +37,7 @@
          id: 'user-1',
          name: 'Administrador',
          email: email,
-         role: 'admin',
+         role: 'super_admin',
          status: 'active',
          createdAt: new Date(),
        });
