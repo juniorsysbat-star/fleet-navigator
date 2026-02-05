@@ -71,7 +71,7 @@ export function VehicleMap({
   const trafficLayerRef = useRef<L.TileLayer | null>(null);
   const baseTileLayerRef = useRef<L.TileLayer | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
-  const [isTrafficEnabled, setIsTrafficEnabled] = useState(false);
+  const [isTrafficEnabled, setIsTrafficEnabled] = useState(true);
   const [shouldFollowVehicle, setShouldFollowVehicle] = useState(false);
   const { theme } = useTheme();
 
@@ -238,7 +238,18 @@ export function VehicleMap({
 
     mapRef.current = map;
     setIsMapReady(true);
- 
+
+    // Add traffic layer by default
+    const trafficLayer = L.tileLayer(
+      'https://mt0.google.com/vt/lyrs=m@221097413,traffic&x={x}&y={y}&z={z}',
+      {
+        maxZoom: 19,
+        opacity: 0.7,
+      }
+    );
+    trafficLayer.addTo(map);
+    trafficLayerRef.current = trafficLayer;
+
     // Disable follow as soon as user interacts with the camera (drag/zoom)
     const handleDragStart = () => {
       setShouldFollowVehicle(false);
