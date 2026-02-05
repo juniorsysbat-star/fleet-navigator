@@ -4,6 +4,7 @@ import { API_CONFIG, getPositionsUrl } from '@/config/api';
 import { getAnimatedMockVehicles } from '@/data/mockVehicles';
  import { generateDemoVehicles, animateDemoVehicles } from '@/data/mockDemoVehicles';
  import { useAuth } from '@/contexts/AuthContext';
+import { DeviceFormData } from '@/components/admin/DeviceModal';
 
  export function useVehicles(forceDemoMode?: boolean) {
    // Tenta usar o contexto de auth, mas fallback para false se não estiver disponível
@@ -156,6 +157,54 @@ import { getAnimatedMockVehicles } from '@/data/mockVehicles';
   const movingCount = vehicles.filter((v) => v.speed > 5).length;
   const stoppedCount = vehicles.filter((v) => v.speed <= 5).length;
 
+  // Update vehicle in local state (for demo mode persistence)
+  const updateVehicle = useCallback((device: DeviceFormData) => {
+    setVehicles(prev => prev.map(v => {
+      if (v.device_id === device.id) {
+        return {
+          ...v,
+          device_name: device.plate || device.name,
+          vehicleType: device.vehicleType,
+          iconColor: device.iconColor,
+          documentation: {
+            ipvaExpiry: device.ipvaExpiry,
+            insuranceExpiry: device.insuranceExpiry,
+            licensingExpiry: device.licensingExpiry,
+            trailers: device.trailers,
+          },
+        };
+      }
+      return v;
+    }));
+  }, []);
+
+  // Add new vehicle to local state (for demo mode persistence)
+  const addVehicle = useCallback((device: DeviceFormData) => {
+    const newVehicle: VehicleWithStatus = {
+      device_id: device.imei || `demo-${Date.now()}`,
+      device_name: device.plate || device.name,
+      latitude: -23.5505 + (Math.random() - 0.5) * 2,
+      longitude: -46.6333 + (Math.random() - 0.5) * 2,
+      speed: 0,
+      address: 'Endereço será atualizado automaticamente',
+      devicetime: new Date().toISOString(),
+      vehicleType: device.vehicleType,
+      iconColor: device.iconColor,
+      documentation: {
+        ipvaExpiry: device.ipvaExpiry,
+        insuranceExpiry: device.insuranceExpiry,
+        licensingExpiry: device.licensingExpiry,
+        trailers: device.trailers,
+      },
+      isMoving: false,
+      status: 'stopped',
+      ignition: false,
+      batteryLevel: 100,
+    };
+    setVehicles(prev => [newVehicle, ...prev]);
+    return newVehicle;
+  }, []);
+
   return {
     vehicles,
     isLoading,
@@ -166,5 +215,7 @@ import { getAnimatedMockVehicles } from '@/data/mockVehicles';
     isUsingMockData,
      isDemoMode: isDemo,
     refetch: fetchVehicles,
+    updateVehicle,
+    addVehicle,
   };
 }

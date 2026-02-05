@@ -11,6 +11,8 @@ import { AlertCircle, Database } from 'lucide-react';
 import { generateMockTrail, MOCK_TRAILS } from '@/data/mockVehicles';
 import { MOCK_GEOFENCES, Geofence } from '@/data/mockGeofences';
 import { Mission } from '@/types/mission';
+import { DeviceFormData } from '@/components/admin/DeviceModal';
+import { toast } from '@/hooks/use-toast';
 
 type PanelState = 'open' | 'minimized' | 'closed';
 
@@ -47,7 +49,7 @@ const Dashboard = () => {
     mission: 'closed',
   });
   
-  const { vehicles, isLoading, error, lastUpdate, movingCount, stoppedCount, isUsingMockData, refetch } = useVehicles();
+  const { vehicles, isLoading, error, lastUpdate, movingCount, stoppedCount, isUsingMockData, refetch, updateVehicle, addVehicle } = useVehicles();
   
   const selectedVehicle = vehicles.find(v => v.device_id === selectedVehicleId) || null;
 
@@ -234,6 +236,26 @@ const Dashboard = () => {
     ? vehicles.find(v => v.device_id === activeMission.vehicleId) 
     : undefined;
 
+  // Handle vehicle update from detail panel
+  const handleVehicleUpdate = useCallback((device: DeviceFormData) => {
+    if (device.id) {
+      updateVehicle(device);
+      toast({
+        title: "✅ Veículo atualizado",
+        description: `${device.plate || device.name} foi salvo com sucesso (Modo Local)`,
+      });
+    } else {
+      const newVehicle = addVehicle(device);
+      toast({
+        title: "✅ Veículo cadastrado",
+        description: `${device.plate || device.name} foi adicionado com sucesso (Modo Local)`,
+      });
+      // Select the new vehicle
+      setSelectedVehicleId(newVehicle.device_id);
+      setPanelState('vehicleDetail', 'open');
+    }
+  }, [updateVehicle, addVehicle, setPanelState]);
+
   return (
     <div className="h-full w-full flex overflow-hidden bg-background">
       {/* Sidebar - Vehicle List */}
@@ -378,6 +400,7 @@ const Dashboard = () => {
           isTrailVisible={showTrail}
           onOpenMissionPlanner={() => setIsMissionPlannerOpen(true)}
           onMinimize={handleMinimizeVehicleDetail}
+          onVehicleUpdate={handleVehicleUpdate}
         />
       )}
 
