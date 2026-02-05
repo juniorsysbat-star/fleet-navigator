@@ -7,7 +7,7 @@ import { Mission } from '@/types/mission';
  import { TrafficCone, Layers, Crosshair } from 'lucide-react';
  import { Hexagon } from 'lucide-react';
 import { getCurrentRoadSpeedLimit } from '@/services/routingService';
-import { createVehicleIcon, getMarkerStatus, MarkerStatus } from './map/vehicleIcons';
+import { createVehicleIcon } from './map/vehicleIcons';
 import { useGeofenceDrawing, DrawingMode, GeofenceDrawResult } from '@/hooks/useGeofenceDrawing';
 import 'leaflet/dist/leaflet.css';
 
@@ -19,38 +19,11 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-// Determine if vehicle is online based on status and last update
-const isVehicleOnline = (vehicle: VehicleWithStatus): boolean => {
-  // Check if offline based on status
-  if (vehicle.status === 'offline') return false;
-  
-  // Check last communication time (10 min threshold)
-  if (vehicle.devicetime) {
-    const lastUpdate = new Date(vehicle.devicetime).getTime();
-    const now = Date.now();
-    const tenMinutes = 10 * 60 * 1000;
-    if (now - lastUpdate > tenMinutes) return false;
-  }
-  
-  return true;
-};
-
-// Get marker status using new LED logic
-const getVehicleLedStatus = (vehicle: VehicleWithStatus): MarkerStatus => {
-  const isOnline = isVehicleOnline(vehicle);
-  // TODO: Add blocked/alarm detection when API provides this data
-  const isBlocked = false;
-  const hasAlarm = false;
-  
-  return getMarkerStatus(isOnline, vehicle.speed, isBlocked, hasAlarm);
-};
-
-// Legacy function for popup colors
-const getPopupStatus = (vehicle: VehicleWithStatus): 'moving' | 'stopped' | 'offline' => {
-  const ledStatus = getVehicleLedStatus(vehicle);
-  if (ledStatus === 'offline') return 'offline';
-  if (ledStatus === 'moving') return 'moving';
-  return 'stopped';
+const getVehicleMarkerStatus = (vehicle: VehicleWithStatus): 'moving' | 'idle' | 'offline' | 'unknown' => {
+  if (vehicle.speed > 5) return 'moving';
+  if (vehicle.ignition === true || vehicle.speed > 0) return 'idle';
+  if (vehicle.ignition === false) return 'offline';
+  return 'unknown';
 };
 
 interface VehicleMapProps {
@@ -141,16 +114,18 @@ export function VehicleMap({
   };
 
   const createPopupContent = (vehicle: VehicleWithStatus) => {
-    const status = getPopupStatus(vehicle);
+    const status = getVehicleMarkerStatus(vehicle);
     const statusColors = {
       moving: 'hsl(160, 100%, 45%)',
-      stopped: 'hsl(50, 100%, 55%)',
+      idle: 'hsl(50, 100%, 55%)',
       offline: 'hsl(0, 85%, 55%)',
+      unknown: 'hsl(220, 15%, 55%)',
     };
     const statusLabels = {
       moving: 'Em movimento',
-      stopped: 'Parado',
+      idle: 'Parado ligado',
       offline: 'Offline',
+      unknown: 'Desconhecido',
     };
 
     return `
@@ -326,8 +301,8 @@ export function VehicleMap({
     vehicles.forEach((vehicle) => {
       const existingMarker = existingMarkers.get(vehicle.device_id);
       
-      // Get LED status using new logic
-      let markerStatus: MarkerStatus = getVehicleLedStatus(vehicle);
+      // Check if this vehicle is speeding (if in active mission)
+      let markerStatus: 'moving' | 'idle' | 'offline' | 'unknown' | 'speeding' = getVehicleMarkerStatus(vehicle);
       
       if (activeMission && vehicle.device_id === activeMission.vehicleId) {
         // Check against road speed limit
@@ -339,7 +314,7 @@ export function VehicleMap({
         );
         
         if (vehicle.speed > roadSpeed.maxSpeed) {
-          markerStatus = 'alert'; // Use alert status for speeding
+          markerStatus = 'speeding';
         }
       }
 
