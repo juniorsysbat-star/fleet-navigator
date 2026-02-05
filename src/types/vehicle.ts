@@ -52,17 +52,27 @@ export type StatusColorClass =
   | 'bg-red-500'
   | 'bg-gray-400'
   | 'bg-yellow-500'
+  | 'bg-amber-300'
   | 'bg-emerald-500';
 
-export function getStatusColor(vehicle: Pick<VehicleWithStatus, 'alarm' | 'alert' | 'blocked' | 'status' | 'speed'>): StatusColorClass {
+export function getStatusColor(vehicle: Pick<VehicleWithStatus, 'alarm' | 'alert' | 'blocked' | 'status' | 'speed' | 'devicetime' | 'ignition'>): StatusColorClass {
+  // Calcula se a comunicação é recente (< 10 minutos)
+  const lastUpdate = new Date(vehicle.devicetime);
+  const now = new Date();
+  const diffMinutes = (now.getTime() - lastUpdate.getTime()) / (1000 * 60);
+  const isOnline = diffMinutes < 10;
+
   // SE tiver qualquer valor no campo de alarme OU estiver bloqueado -> VERMELHO
   if (vehicle.alarm || vehicle.alert || vehicle.blocked) return 'bg-red-500';
 
-  // Se não tem alarme, mas está offline -> CINZA
-  if (vehicle.status === 'offline') return 'bg-gray-400';
+  // Se não tem alarme E está sem comunicação há mais de 10 min -> CINZA (Offline)
+  if (!isOnline) return 'bg-gray-400';
 
-  // Se online e velocidade 0 -> AMARELO
-  if (vehicle.speed < 1) return 'bg-yellow-500';
+  // Se online e velocidade < 2 -> PARADO
+  if (vehicle.speed < 2) {
+    // Ignição ligada = Amarelo forte, Desligada = Amarelo claro
+    return vehicle.ignition !== false ? 'bg-yellow-500' : 'bg-amber-300';
+  }
 
   // Se online e andando -> VERDE
   return 'bg-emerald-500';
@@ -72,17 +82,18 @@ export type MarkerStatus = 'moving' | 'idle' | 'offline' | 'unknown' | 'speeding
 
 export function getStatusVisual(vehicle: VehicleWithStatus) {
   const bgClass = getStatusColor(vehicle);
-  const textClass = bgClass.replace('bg-', 'text-') as
-    | 'text-red-500'
-    | 'text-gray-400'
-    | 'text-yellow-500'
-    | 'text-emerald-500';
-
-  const borderClass = bgClass.replace('bg-', 'border-') as
-    | 'border-red-500'
-    | 'border-gray-400'
-    | 'border-yellow-500'
-    | 'border-emerald-500';
+  
+  // Map colors consistently
+  const colorMap: Record<StatusColorClass, { text: string; border: string }> = {
+    'bg-red-500': { text: 'text-red-500', border: 'border-red-500' },
+    'bg-gray-400': { text: 'text-gray-400', border: 'border-gray-400' },
+    'bg-yellow-500': { text: 'text-yellow-500', border: 'border-yellow-500' },
+    'bg-amber-300': { text: 'text-amber-400', border: 'border-amber-300' },
+    'bg-emerald-500': { text: 'text-emerald-500', border: 'border-emerald-500' },
+  };
+  
+  const textClass = colorMap[bgClass].text;
+  const borderClass = colorMap[bgClass].border;
 
   const softBgClass = (bgClass + '/10') as string;
 
@@ -91,7 +102,7 @@ export function getStatusVisual(vehicle: VehicleWithStatus) {
       ? 'speeding'
       : bgClass === 'bg-gray-400'
         ? 'offline'
-        : bgClass === 'bg-yellow-500'
+        : (bgClass === 'bg-yellow-500' || bgClass === 'bg-amber-300')
           ? 'idle'
           : 'moving';
 
@@ -107,7 +118,9 @@ export function getStatusVisual(vehicle: VehicleWithStatus) {
         ? 'OFFLINE / SEM SINAL'
         : bgClass === 'bg-yellow-500'
           ? 'PARADO (LIGADO)'
-          : 'EM MOVIMENTO';
+          : bgClass === 'bg-amber-300'
+            ? 'PARADO (DESLIGADO)'
+            : 'EM MOVIMENTO';
 
   return {
     bgClass,
