@@ -1,4 +1,4 @@
-import { VehicleWithStatus, VehicleStatus } from '@/types/vehicle';
+import { VehicleWithStatus, getVehicleStatusWithPriority } from '@/types/vehicle';
 import { Car, Gauge, MapPin, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -7,52 +7,6 @@ interface VehicleCardProps {
   isSelected: boolean;
   onClick: () => void;
 }
-
-// Unified status logic - same as map markers
-const getDetailedStatus = (vehicle: VehicleWithStatus): { 
-  status: VehicleStatus; 
-  label: string; 
-  colorClass: string;
-  dotClass: string;
-} => {
-  // Blue: Online and Moving (Speed > 0)
-  if (vehicle.speed > 0) {
-    return { 
-      status: 'moving', 
-      label: 'EM MOVIMENTO', 
-      colorClass: 'text-blue-500',
-      dotClass: 'bg-blue-500'
-    };
-  }
-  
-  // Yellow: Online and Stopped (Speed = 0, but ignition on)
-  if (vehicle.ignition === true && vehicle.speed === 0) {
-    return { 
-      status: 'idle', 
-      label: 'PARADO LIGADO', 
-      colorClass: 'text-yellow-500',
-      dotClass: 'bg-yellow-500'
-    };
-  }
-  
-  // Gray: Offline (ignition off)
-  if (vehicle.ignition === false) {
-    return { 
-      status: 'offline', 
-      label: 'OFFLINE', 
-      colorClass: 'text-gray-500',
-      dotClass: 'bg-gray-500'
-    };
-  }
-  
-  // Unknown
-  return { 
-    status: 'unknown', 
-    label: 'DESCONHECIDO', 
-    colorClass: 'text-gray-500',
-    dotClass: 'bg-gray-500'
-  };
-};
 
 export function VehicleCard({ vehicle, isSelected, onClick }: VehicleCardProps) {
   const formatDate = (dateString: string) => {
@@ -65,7 +19,7 @@ export function VehicleCard({ vehicle, isSelected, onClick }: VehicleCardProps) 
     });
   };
 
-  const statusInfo = getDetailedStatus(vehicle);
+  const statusInfo = getVehicleStatusWithPriority(vehicle);
 
   return (
     <button
@@ -86,35 +40,25 @@ export function VehicleCard({ vehicle, isSelected, onClick }: VehicleCardProps) 
             className={cn(
               "w-10 h-10 rounded-full flex items-center justify-center",
               "border-2 transition-all duration-300",
-              statusInfo.status === 'moving' && "border-blue-500 bg-blue-500/10",
-              statusInfo.status === 'idle' && "border-yellow-500 bg-yellow-500/10",
-              statusInfo.status === 'offline' && "border-gray-500 bg-gray-500/10",
-              statusInfo.status === 'unknown' && "border-gray-500 bg-gray-500/10"
+              statusInfo.borderClass,
+              statusInfo.bgClass
             )}
             style={{
-              boxShadow: statusInfo.status === 'moving'
-                ? '0 0 15px rgba(59, 130, 246, 0.4)'
-                : statusInfo.status === 'idle'
-                ? '0 0 15px rgba(234, 179, 8, 0.4)'
+              boxShadow: statusInfo.glowColor !== 'none' 
+                ? `0 0 15px ${statusInfo.glowColor}` 
                 : 'none',
             }}
           >
             <Car
-              className={cn(
-                "w-5 h-5",
-                statusInfo.status === 'moving' && "text-blue-500",
-                statusInfo.status === 'idle' && "text-yellow-500",
-                statusInfo.status === 'offline' && "text-gray-500",
-                statusInfo.status === 'unknown' && "text-gray-500"
-              )}
+              className={cn("w-5 h-5", statusInfo.colorClass)}
             />
           </div>
           
-          {/* Pulsing dot for moving vehicles */}
-          {statusInfo.status === 'moving' && (
+          {/* Pulsing dot for moving vehicles or alerts */}
+          {(statusInfo.status === 'moving' || statusInfo.status === 'alert') && (
             <span className="absolute -top-1 -right-1 w-3 h-3">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-blue-500 opacity-75 animate-ping" />
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500" />
+              <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping", statusInfo.dotClass)} />
+              <span className={cn("relative inline-flex rounded-full h-3 w-3", statusInfo.dotClass)} />
             </span>
           )}
         </div>

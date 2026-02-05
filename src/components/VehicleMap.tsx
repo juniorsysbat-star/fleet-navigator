@@ -1,6 +1,6 @@
  import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import L from 'leaflet';
-import { VehicleWithStatus, VehicleType } from '@/types/vehicle';
+import { VehicleWithStatus, VehicleType, getVehicleStatusWithPriority, VehicleAlertStatus } from '@/types/vehicle';
 import { Geofence } from '@/data/mockGeofences';
 import { Mission } from '@/types/mission';
  import { Button } from '@/components/ui/button';
@@ -22,17 +22,6 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
-
-// Unified status logic - synchronized with VehicleCard
-const getVehicleMarkerStatus = (vehicle: VehicleWithStatus): 'moving' | 'idle' | 'offline' | 'unknown' => {
-  // Green: Moving (Speed > 0)
-  if (vehicle.speed > 0) return 'moving';
-  // Yellow: Stopped but online (ignition on, speed = 0)
-  if (vehicle.ignition === true && vehicle.speed === 0) return 'idle';
-  // Gray: Offline (ignition off)
-  if (vehicle.ignition === false) return 'offline';
-  return 'unknown';
-};
 
 interface VehicleMapProps {
   vehicles: VehicleWithStatus[];
@@ -150,14 +139,16 @@ export function VehicleMap({
   };
 
   const createPopupContent = (vehicle: VehicleWithStatus) => {
-    const status = getVehicleMarkerStatus(vehicle);
+    const statusInfo = getVehicleStatusWithPriority(vehicle);
     const statusColors = {
+      alert: 'hsl(0, 85%, 55%)',
       moving: 'hsl(160, 100%, 45%)',
       idle: 'hsl(50, 100%, 55%)',
-      offline: 'hsl(0, 85%, 55%)',
+      offline: 'hsl(220, 15%, 55%)',
       unknown: 'hsl(220, 15%, 55%)',
     };
     const statusLabels = {
+      alert: statusInfo.label,
       moving: 'Em movimento',
       idle: 'Parado ligado',
       offline: 'Offline',
@@ -179,9 +170,9 @@ export function VehicleMap({
         
         <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <div style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColors[status]}"></div>
-            <span style="color: ${statusColors[status]}">
-              ${statusLabels[status]}
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColors[statusInfo.status]}"></div>
+            <span style="color: ${statusColors[statusInfo.status]}">
+              ${statusLabels[statusInfo.status]}
             </span>
           </div>
           
@@ -338,7 +329,8 @@ export function VehicleMap({
       const existingMarker = existingMarkers.get(vehicle.device_id);
       
       // Check if this vehicle is speeding (if in active mission)
-      let markerStatus: 'moving' | 'idle' | 'offline' | 'unknown' | 'speeding' = getVehicleMarkerStatus(vehicle);
+      const statusInfo = getVehicleStatusWithPriority(vehicle);
+      let markerStatus: 'moving' | 'idle' | 'offline' | 'unknown' | 'speeding' = statusInfo.status === 'alert' ? 'speeding' : statusInfo.status;
       
       if (activeMission && vehicle.device_id === activeMission.vehicleId) {
         // Check against road speed limit
