@@ -10,6 +10,7 @@ import { Mission } from '@/types/mission';
 import { getCurrentRoadSpeedLimit } from '@/services/routingService';
 import { createVehicleIcon } from './map/vehicleIcons';
 import { useGeofenceDrawing, DrawingMode, GeofenceDrawResult } from '@/hooks/useGeofenceDrawing';
+import { useTheme } from '@/contexts/ThemeContext';
 import 'leaflet/dist/leaflet.css';
 
 // Sidebar width + Detail panel width for smart pan offset calculation
@@ -68,9 +69,17 @@ export function VehicleMap({
   const missionCorridorRef = useRef<L.Polyline | null>(null);
   const missionMarkersRef = useRef<L.Marker[]>([]);
   const trafficLayerRef = useRef<L.TileLayer | null>(null);
+  const baseTileLayerRef = useRef<L.TileLayer | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
   const [isTrafficEnabled, setIsTrafficEnabled] = useState(false);
   const [shouldFollowVehicle, setShouldFollowVehicle] = useState(false);
+  const { theme } = useTheme();
+
+  // Tile URLs for different themes
+  const TILE_URLS = {
+    dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+  };
 
   // Smart pan: calculates the offset to center vehicle in the visible map area
   const getSmartPanOffset = useCallback((): [number, number] => {
@@ -220,10 +229,12 @@ export function VehicleMap({
       zoomControl: true,
     });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    const tileLayer = L.tileLayer(TILE_URLS[theme], {
       attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
       maxZoom: 19,
-    }).addTo(map);
+    });
+    tileLayer.addTo(map);
+    baseTileLayerRef.current = tileLayer;
 
     mapRef.current = map;
     setIsMapReady(true);
@@ -258,10 +269,31 @@ export function VehicleMap({
        
       map.remove();
       mapRef.current = null;
+      baseTileLayerRef.current = null;
       setIsMapReady(false);
     };
-   }, []);
+   }, [theme]);
 
+  // Update tile layer when theme changes
+  useEffect(() => {
+    if (!mapRef.current || !isMapReady || !baseTileLayerRef.current) return;
+    
+    const map = mapRef.current;
+    const currentUrl = TILE_URLS[theme];
+    
+    // Remove old tile layer and add new one
+    map.removeLayer(baseTileLayerRef.current);
+    
+    const newTileLayer = L.tileLayer(currentUrl, {
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+      maxZoom: 19,
+    });
+    newTileLayer.addTo(map);
+    
+    // Move to bottom so markers stay on top
+    newTileLayer.bringToBack();
+    baseTileLayerRef.current = newTileLayer;
+  }, [theme, isMapReady]);
 
   // Ref to track if initial centering has been done
   const initialCenterDoneRef = useRef(false);

@@ -74,6 +74,69 @@
     --sidebar-border: 220 30% 20%;
     --sidebar-ring: 160 100% 50%;
   }
+
+  /* Light Theme */
+  .light {
+    --background: 0 0% 98%;
+    --foreground: 220 20% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 15%;
+
+    --primary: 160 80% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 15% 92%;
+    --secondary-foreground: 220 20% 25%;
+
+    --muted: 220 15% 95%;
+    --muted-foreground: 220 10% 45%;
+
+    --accent: 180 70% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 75% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 80% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 35 90% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 220 15% 85%;
+    --input: 220 15% 95%;
+    --ring: 160 80% 40%;
+
+    /* Cyberpunk tokens - lighter versions */
+    --neon-green: 160 80% 40%;
+    --neon-red: 0 80% 50%;
+    --neon-cyan: 180 70% 40%;
+    --neon-magenta: 320 80% 50%;
+    --neon-yellow: 50 90% 45%;
+    --neon-orange: 35 90% 45%;
+
+    --glow-green: 0 0 10px hsl(160 80% 40% / 0.3);
+    --glow-red: 0 0 10px hsl(0 80% 50% / 0.3);
+    --glow-cyan: 0 0 10px hsl(180 70% 40% / 0.3);
+    --glow-yellow: 0 0 10px hsl(50 90% 45% / 0.3);
+
+    --gradient-dark: linear-gradient(180deg, hsl(0 0% 98%) 0%, hsl(220 15% 95%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(220 15% 97%) 100%);
+    --gradient-neon: linear-gradient(90deg, hsl(160 80% 40%) 0%, hsl(180 70% 40%) 100%);
+
+    --sidebar-background: 220 15% 97%;
+    --sidebar-foreground: 220 20% 15%;
+    --sidebar-primary: 160 80% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 15% 92%;
+    --sidebar-accent-foreground: 220 20% 25%;
+    --sidebar-border: 220 15% 88%;
+    --sidebar-ring: 160 80% 40%;
+  }
 }
 
 @layer base {
