@@ -11,6 +11,7 @@ import { AlertCircle, Database } from 'lucide-react';
 import { generateMockTrail, MOCK_TRAILS } from '@/data/mockVehicles';
 import { MOCK_GEOFENCES, Geofence } from '@/data/mockGeofences';
 import { Mission } from '@/types/mission';
+ import { TrailPoint } from '@/data/mockTrailHistory';
 import type { DeviceFormData } from '@/components/admin/DeviceModal';
 import { toast } from '@/hooks/use-toast';
 
@@ -27,7 +28,7 @@ const Dashboard = () => {
   // Vehicle selection state
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [showTrail, setShowTrail] = useState(false);
-  const [trailData, setTrailData] = useState<{ lat: number; lng: number }[] | null>(null);
+   const [trailData, setTrailData] = useState<TrailPoint[] | null>(null);
   
   // Geofence state
   const [geofences, setGeofences] = useState<Geofence[]>(MOCK_GEOFENCES);
@@ -104,17 +105,18 @@ const Dashboard = () => {
     minimizePanel('vehicleDetail');
   };
 
-  const handleShowTrail = (vehicleId: string) => {
-    if (showTrail) {
+   const handleShowTrail = (vehicleId: string, trail?: TrailPoint[]) => {
+     // If trail is provided, show it directly
+     if (trail) {
+       setTrailData(trail);
+       setShowTrail(true);
+       return;
+     }
+     
+     // Toggle off if already visible
+     if (showTrail && !trail) {
       setShowTrail(false);
       setTrailData(null);
-    } else {
-      const vehicle = vehicles.find(v => v.device_id === vehicleId);
-      if (vehicle) {
-        const mockTrail = MOCK_TRAILS[vehicleId] || generateMockTrail(vehicle.latitude, vehicle.longitude);
-        setTrailData(mockTrail);
-        setShowTrail(true);
-      }
     }
   };
 
