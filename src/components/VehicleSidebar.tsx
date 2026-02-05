@@ -127,28 +127,28 @@ export function VehicleSidebar({
             <p className="text-[8px] text-muted-foreground uppercase">Total</p>
           </div>
           
-          <div className="p-2 rounded-lg bg-success/10 border border-success/30 text-center">
+          <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/30 text-center">
             <div className="flex items-center justify-center mb-1">
-              <Activity className="w-3.5 h-3.5 text-success" />
+              <Activity className="w-3.5 h-3.5 text-blue-500" />
             </div>
-            <p className="text-base font-display font-bold text-success">{movingCountCalc}</p>
-            <p className="text-[8px] text-success/70 uppercase">Ativos</p>
+            <p className="text-base font-display font-bold text-blue-500">{movingCountCalc}</p>
+            <p className="text-[8px] text-blue-500/70 uppercase">Ativos</p>
           </div>
           
-          <div className="p-2 rounded-lg bg-warning/10 border border-warning/30 text-center">
+          <div className="p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-center">
             <div className="flex items-center justify-center mb-1">
-              <Radio className="w-3.5 h-3.5 text-warning" />
+              <Radio className="w-3.5 h-3.5 text-yellow-500" />
             </div>
-            <p className="text-base font-display font-bold text-warning">{idleCount}</p>
-            <p className="text-[8px] text-warning/70 uppercase">Parados</p>
+            <p className="text-base font-display font-bold text-yellow-500">{idleCount}</p>
+            <p className="text-[8px] text-yellow-500/70 uppercase">Parados</p>
           </div>
           
-          <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/30 text-center">
+          <div className="p-2 rounded-lg bg-gray-500/10 border border-gray-500/30 text-center">
             <div className="flex items-center justify-center mb-1">
-              <WifiOff className="w-3.5 h-3.5 text-destructive" />
+              <WifiOff className="w-3.5 h-3.5 text-gray-500" />
             </div>
-            <p className="text-base font-display font-bold text-destructive">{offlineCount}</p>
-            <p className="text-[8px] text-destructive/70 uppercase">Offline</p>
+            <p className="text-base font-display font-bold text-gray-500">{offlineCount}</p>
+            <p className="text-[8px] text-gray-500/70 uppercase">Offline</p>
           </div>
         </div>
 

@@ -15,13 +15,13 @@ const getDetailedStatus = (vehicle: VehicleWithStatus): {
   colorClass: string;
   dotClass: string;
 } => {
-  // Green: Online and Moving (Speed > 0)
+  // Blue: Online and Moving (Speed > 0)
   if (vehicle.speed > 0) {
     return { 
       status: 'moving', 
       label: 'EM MOVIMENTO', 
-      colorClass: 'text-success',
-      dotClass: 'bg-success'
+      colorClass: 'text-blue-500',
+      dotClass: 'bg-blue-500'
     };
   }
   
@@ -30,8 +30,8 @@ const getDetailedStatus = (vehicle: VehicleWithStatus): {
     return { 
       status: 'idle', 
       label: 'PARADO LIGADO', 
-      colorClass: 'text-warning',
-      dotClass: 'bg-warning'
+      colorClass: 'text-yellow-500',
+      dotClass: 'bg-yellow-500'
     };
   }
   
@@ -40,8 +40,8 @@ const getDetailedStatus = (vehicle: VehicleWithStatus): {
     return { 
       status: 'offline', 
       label: 'OFFLINE', 
-      colorClass: 'text-muted-foreground',
-      dotClass: 'bg-muted-foreground'
+      colorClass: 'text-gray-500',
+      dotClass: 'bg-gray-500'
     };
   }
   
@@ -49,8 +49,8 @@ const getDetailedStatus = (vehicle: VehicleWithStatus): {
   return { 
     status: 'unknown', 
     label: 'DESCONHECIDO', 
-    colorClass: 'text-muted-foreground',
-    dotClass: 'bg-muted-foreground'
+    colorClass: 'text-gray-500',
+    dotClass: 'bg-gray-500'
   };
 };
 
@@ -86,26 +86,26 @@ export function VehicleCard({ vehicle, isSelected, onClick }: VehicleCardProps) 
             className={cn(
               "w-10 h-10 rounded-full flex items-center justify-center",
               "border-2 transition-all duration-300",
-              statusInfo.status === 'moving' && "border-success bg-success/10",
-              statusInfo.status === 'idle' && "border-warning bg-warning/10",
-              statusInfo.status === 'offline' && "border-muted-foreground bg-muted/10",
-              statusInfo.status === 'unknown' && "border-muted-foreground bg-muted/10"
+              statusInfo.status === 'moving' && "border-blue-500 bg-blue-500/10",
+              statusInfo.status === 'idle' && "border-yellow-500 bg-yellow-500/10",
+              statusInfo.status === 'offline' && "border-gray-500 bg-gray-500/10",
+              statusInfo.status === 'unknown' && "border-gray-500 bg-gray-500/10"
             )}
             style={{
               boxShadow: statusInfo.status === 'moving'
-                ? '0 0 15px hsl(var(--neon-green) / 0.4)'
+                ? '0 0 15px rgba(59, 130, 246, 0.4)'
                 : statusInfo.status === 'idle'
-                ? '0 0 15px hsl(var(--neon-yellow) / 0.4)'
+                ? '0 0 15px rgba(234, 179, 8, 0.4)'
                 : 'none',
             }}
           >
             <Car
               className={cn(
                 "w-5 h-5",
-                statusInfo.status === 'moving' && "text-success",
-                statusInfo.status === 'idle' && "text-warning",
-                statusInfo.status === 'offline' && "text-muted-foreground",
-                statusInfo.status === 'unknown' && "text-muted-foreground"
+                statusInfo.status === 'moving' && "text-blue-500",
+                statusInfo.status === 'idle' && "text-yellow-500",
+                statusInfo.status === 'offline' && "text-gray-500",
+                statusInfo.status === 'unknown' && "text-gray-500"
               )}
             />
           </div>
@@ -113,8 +113,8 @@ export function VehicleCard({ vehicle, isSelected, onClick }: VehicleCardProps) 
           {/* Pulsing dot for moving vehicles */}
           {statusInfo.status === 'moving' && (
             <span className="absolute -top-1 -right-1 w-3 h-3">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-75 animate-ping" />
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-success" />
+              <span className="absolute inline-flex h-full w-full rounded-full bg-blue-500 opacity-75 animate-ping" />
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500" />
             </span>
           )}
         </div>
