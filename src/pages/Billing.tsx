@@ -162,7 +162,7 @@ const Billing = () => {
 
       {/* Overdue Alert */}
       {BILLING_SUMMARY.overdueClients > 0 && (
-        <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/30 flex items-center justify-between">
+        <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/30">
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-6 h-6 text-destructive" />
             <div>
@@ -174,10 +174,6 @@ const Billing = () => {
               </p>
             </div>
           </div>
-          <Button variant="destructive" size="sm" className="gap-2">
-            <Mail className="w-4 h-4" />
-            Enviar Lembretes
-          </Button>
         </div>
       )}
 
