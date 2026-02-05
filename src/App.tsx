@@ -36,10 +36,10 @@ import { PendingItemsModal } from "@/components/notifications/PendingItemsModal"
             <TooltipProvider>
               <Toaster />
               <Sonner />
-              <AnnouncementModal />
-              <SmartNotificationCenter />
-              <PendingItemsModal />
               <VehiclesProvider>
+                <AnnouncementModal />
+                <SmartNotificationCenter />
+                <PendingItemsModal />
                 <BrowserRouter>
                   <Routes>
                     <Route path="/login" element={<Login />} />
