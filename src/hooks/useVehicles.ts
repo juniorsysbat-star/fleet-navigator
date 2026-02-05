@@ -8,23 +8,36 @@ import { getAnimatedMockVehicles } from '@/data/mockVehicles';
  export function useVehicles(forceDemoMode?: boolean) {
    // Tenta usar o contexto de auth, mas fallback para false se não estiver disponível
    let isDemoFromContext = false;
+  let loginDemoFn: (() => void) | null = null;
    try {
      const auth = useAuth();
      isDemoFromContext = auth.isDemoMode;
+    loginDemoFn = auth.loginDemo;
    } catch {
      // Se não estiver dentro do AuthProvider, usa o parâmetro
    }
    
    const isDemo = forceDemoMode ?? isDemoFromContext;
    
-  const [vehicles, setVehicles] = useState<VehicleWithStatus[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Inicializa com dados mock para liberar tela imediatamente
+  const [vehicles, setVehicles] = useState<VehicleWithStatus[]>(() => {
+    const initialMock = getAnimatedMockVehicles();
+    return initialMock.map(v => ({
+      ...v,
+      isMoving: v.speed > 0,
+      status: v.speed > 5 ? 'moving' as const : v.speed > 0 ? 'idle' as const : 'stopped' as const,
+      ignition: v.speed > 0,
+      batteryLevel: Math.floor(Math.random() * 30) + 70,
+    }));
+  });
+  const [isLoading, setIsLoading] = useState(false); // Começa false - tela liberada imediatamente
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [isUsingMockData, setIsUsingMockData] = useState(false);
+  const [isUsingMockData, setIsUsingMockData] = useState(true); // Assume mock até API responder
    const demoVehiclesRef = useRef<Vehicle[]>([]);
   const retryCountRef = useRef(0);
-  const maxRetries = 2;
+  const hasTriedApiRef = useRef(false);
+  const autoFallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const processVehicles = (data: Vehicle[], isMock: boolean = false): VehicleWithStatus[] => {
     return data.map((vehicle) => {
@@ -58,7 +71,7 @@ import { getAnimatedMockVehicles } from '@/data/mockVehicles';
        return;
      }
  
-    // Se forçar dados mockados, use-os diretamente
+    // Se forçar dados mockados ou já falhou antes, use-os diretamente
     if (API_CONFIG.FORCE_MOCK_DATA) {
       const mockData = getAnimatedMockVehicles();
       setVehicles(processVehicles(mockData, true));
@@ -71,7 +84,8 @@ import { getAnimatedMockVehicles } from '@/data/mockVehicles';
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+      // Timeout reduzido para 3 segundos - libera rápido
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
 
       const response = await fetch(getPositionsUrl(), {
         signal: controller.signal,
@@ -89,28 +103,47 @@ import { getAnimatedMockVehicles } from '@/data/mockVehicles';
       setLastUpdate(new Date());
       setError(null);
       setIsUsingMockData(false);
-      retryCountRef.current = 0;
+      hasTriedApiRef.current = true;
     } catch (err) {
-      console.warn('API não acessível, usando dados mockados:', err);
+      // Log silencioso - não alarma o usuário
+      if (!hasTriedApiRef.current) {
+        console.info('API não disponível, usando dados de demonstração:', err);
+      }
       
-      // Incrementa contador de tentativas
-      retryCountRef.current += 1;
+      hasTriedApiRef.current = true;
       
-      // Após algumas tentativas falhas, usa dados mockados silenciosamente
-      if (retryCountRef.current >= maxRetries) {
-        const mockData = getAnimatedMockVehicles();
-        setVehicles(processVehicles(mockData, true));
-        setLastUpdate(new Date());
-        setIsUsingMockData(true);
-        setError(null); // Não mostra erro, usa mock silenciosamente
-      } else {
-        // Nas primeiras tentativas, mostra erro mas continua tentando
-        setError('Conectando à API...');
+      // Fallback silencioso para mock data
+      const mockData = getAnimatedMockVehicles();
+      setVehicles(processVehicles(mockData, true));
+      setLastUpdate(new Date());
+      setIsUsingMockData(true);
+      setError(null); // Nunca mostra erro - usa mock silenciosamente
+      
+      // Se não há usuário logado e API falhou, entra em modo demo automaticamente
+      if (loginDemoFn && !isDemoFromContext) {
+        // Aguarda um momento e ativa modo demo se continuar sem usuário
+        if (!autoFallbackTimerRef.current) {
+          autoFallbackTimerRef.current = setTimeout(() => {
+            if (!hasTriedApiRef.current || retryCountRef.current > 1) {
+              console.info('Ativando modo demonstração automaticamente');
+              loginDemoFn?.();
+            }
+          }, 3000);
+        }
       }
     } finally {
       setIsLoading(false);
     }
-   }, [isDemo]);
+   }, [isDemo, isDemoFromContext, loginDemoFn]);
+
+  useEffect(() => {
+    // Limpa timer ao desmontar
+    return () => {
+      if (autoFallbackTimerRef.current) {
+        clearTimeout(autoFallbackTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     fetchVehicles();
