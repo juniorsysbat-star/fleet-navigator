@@ -3,7 +3,7 @@ import { useVehicles } from '@/hooks/useVehicles';
 import { VehicleMap } from '@/components/VehicleMap';
 import { VehicleSidebar } from '@/components/VehicleSidebar';
 import { VehicleDetailPanel } from '@/components/VehicleDetailPanel';
-import { GeofencePanel } from '@/components/GeofencePanel';
+import { GeofencePanel, DrawingMode } from '@/components/GeofencePanel';
 import { MissionPlannerModal } from '@/components/MissionPlannerModal';
 import { MissionTracker } from '@/components/MissionTracker';
 import { PanelDock, PanelType } from '@/components/PanelDock';
@@ -30,7 +30,10 @@ const Dashboard = () => {
   // Geofence state
   const [geofences, setGeofences] = useState<Geofence[]>(MOCK_GEOFENCES);
   const [isDrawingGeofence, setIsDrawingGeofence] = useState(false);
+  const [drawingMode, setDrawingMode] = useState<DrawingMode>(null);
   const [selectedGeofenceId, setSelectedGeofenceId] = useState<string | null>(null);
+  const [editingGeofenceId, setEditingGeofenceId] = useState<string | null>(null);
+  const [pendingGeofence, setPendingGeofence] = useState<Geofence | null>(null);
   
   // Mission state
   const [isMissionPlannerOpen, setIsMissionPlannerOpen] = useState(false);
@@ -114,31 +117,65 @@ const Dashboard = () => {
   };
 
   // Geofence handlers
-  const handleStartDrawing = () => {
+  const handleStartDrawing = (mode: DrawingMode) => {
     setIsDrawingGeofence(true);
+    setDrawingMode(mode);
     setSelectedVehicleId(null);
     setPanelState('vehicleDetail', 'closed');
   };
 
   const handleCancelDrawing = () => {
     setIsDrawingGeofence(false);
+    setDrawingMode(null);
   };
 
-  const handleGeofenceDrawn = (coordinates: { lat: number; lng: number }[]) => {
-    const newGeofence: Geofence = {
+  const handleGeofenceDrawn = (data: { 
+    coordinates?: { lat: number; lng: number }[]; 
+    center?: { lat: number; lng: number }; 
+    radius?: number;
+    type: 'polygon' | 'circle';
+  }) => {
+    const newGeofence: Geofence = data.type === 'circle' ? {
+      id: `geo-${Date.now()}`,
+      name: `Nova Cerca ${geofences.length + 1}`,
+      type: 'circle',
+      coordinates: [],
+      center: data.center,
+      radius: data.radius,
+      color: ['#00ff88', '#ff4444', '#00bfff', '#ffcc00'][Math.floor(Math.random() * 4)],
+      isActive: true,
+      alertOnEnter: true,
+      alertOnExit: true,
+      createdAt: new Date(),
+    } : {
       id: `geo-${Date.now()}`,
       name: `Nova Cerca ${geofences.length + 1}`,
       type: 'polygon',
-      coordinates,
+      coordinates: data.coordinates || [],
       color: ['#00ff88', '#ff4444', '#00bfff', '#ffcc00'][Math.floor(Math.random() * 4)],
       isActive: true,
       alertOnEnter: true,
       alertOnExit: true,
       createdAt: new Date(),
     };
-    setGeofences([...geofences, newGeofence]);
+    
+    // Set as pending (user needs to confirm/name it)
+    setPendingGeofence(newGeofence);
     setIsDrawingGeofence(false);
-    console.log('✅ Nova cerca virtual criada:', newGeofence.name);
+    setDrawingMode(null);
+  };
+
+  const handleSavePendingGeofence = (name: string) => {
+    if (pendingGeofence) {
+      const savedGeofence = { ...pendingGeofence, name };
+      setGeofences([...geofences, savedGeofence]);
+      setPendingGeofence(null);
+      console.log('✅ Nova cerca virtual criada:', name);
+    }
+  };
+
+  const handleCancelPendingGeofence = () => {
+    setPendingGeofence(null);
   };
 
   const handleDeleteGeofence = (id: string) => {
@@ -151,6 +188,21 @@ const Dashboard = () => {
     setGeofences(geofences.map(g => 
       g.id === id ? { ...g, isActive: !g.isActive } : g
     ));
+  };
+
+  const handleEditGeofence = (id: string) => {
+    setEditingGeofenceId(id);
+  };
+
+  const handleSaveGeofence = (id: string, name: string) => {
+    setGeofences(geofences.map(g => 
+      g.id === id ? { ...g, name } : g
+    ));
+    setEditingGeofenceId(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingGeofenceId(null);
   };
 
   // Mission handlers
@@ -238,9 +290,12 @@ const Dashboard = () => {
           onVehicleSelect={handleVehicleSelect}
           trailData={showTrail ? trailData : null}
          geofences={panelStates.geofence === 'open' ? geofences : []}
+          pendingGeofence={pendingGeofence}
           isDrawingGeofence={isDrawingGeofence}
+          drawingMode={drawingMode}
           onGeofenceDrawn={handleGeofenceDrawn}
           selectedGeofenceId={selectedGeofenceId}
+          editingGeofenceId={editingGeofenceId}
           activeMission={activeMission}
          showGeofenceButton={panelStates.geofence !== 'open'}
          onOpenGeofencePanel={() => setPanelState('geofence', 'open')}
@@ -251,12 +306,20 @@ const Dashboard = () => {
           <GeofencePanel
             geofences={geofences}
             isDrawing={isDrawingGeofence}
+            drawingMode={drawingMode}
             onStartDrawing={handleStartDrawing}
             onCancelDrawing={handleCancelDrawing}
             onDeleteGeofence={handleDeleteGeofence}
             onToggleGeofence={handleToggleGeofence}
             selectedGeofenceId={selectedGeofenceId}
             onSelectGeofence={setSelectedGeofenceId}
+            onEditGeofence={handleEditGeofence}
+            editingGeofenceId={editingGeofenceId}
+            onSaveGeofence={handleSaveGeofence}
+            onCancelEdit={handleCancelEdit}
+            pendingGeofence={pendingGeofence}
+            onSavePendingGeofence={handleSavePendingGeofence}
+            onCancelPendingGeofence={handleCancelPendingGeofence}
             onMinimize={() => minimizePanel('geofence')}
             onClose={() => closePanel('geofence')}
           />

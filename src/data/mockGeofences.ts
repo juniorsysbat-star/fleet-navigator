@@ -5,7 +5,8 @@ export interface Geofence {
   name: string;
   type: 'polygon' | 'circle';
   coordinates: { lat: number; lng: number }[];
-  radius?: number; // for circles
+  radius?: number; // for circles, in meters
+  center?: { lat: number; lng: number }; // for circles
   color: string;
   isActive: boolean;
   alertOnEnter: boolean;
@@ -61,5 +62,18 @@ export const MOCK_GEOFENCES: Geofence[] = [
     alertOnEnter: false,
     alertOnExit: true,
     createdAt: new Date('2025-01-15'),
+  },
+  {
+    id: 'geo-004',
+    name: 'Ponto de Coleta',
+    type: 'circle',
+    coordinates: [],
+    center: { lat: -23.5600, lng: -46.6500 },
+    radius: 300,
+    color: '#ff9900',
+    isActive: true,
+    alertOnEnter: true,
+    alertOnExit: false,
+    createdAt: new Date('2025-01-20'),
   },
 ];
