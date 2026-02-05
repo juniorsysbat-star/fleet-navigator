@@ -1,16 +1,16 @@
 import { VehicleWithStatus } from '@/types/vehicle';
+import { getStatusColor } from '@/types/vehicle';
 import { VehicleCard } from './VehicleCard';
 import { 
   Car, 
   Navigation, 
   RefreshCw, 
-  Activity,
   Search,
-  Radio,
   Wifi,
   WifiOff,
   X,
-  Minus
+  Minus,
+  AlertTriangle
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -41,12 +41,12 @@ export function VehicleSidebar({
   onMinimize,
 }: VehicleSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState<'all' | 'moving' | 'idle' | 'offline'>('all');
+  const [filter, setFilter] = useState<'all' | 'online' | 'offline' | 'alert'>('all');
 
-  // Calculate counts by status - synchronized with VehicleCard logic
-  const movingCountCalc = vehicles.filter(v => v.speed > 0).length;
-  const idleCount = vehicles.filter(v => v.ignition === true && v.speed === 0).length;
-  const offlineCount = vehicles.filter(v => v.ignition === false).length;
+  // Calculate counts by simplified triad status
+  const alertCount = vehicles.filter(v => getStatusColor(v) === 'bg-red-500').length;
+  const offlineCount = vehicles.filter(v => getStatusColor(v) === 'bg-gray-400').length;
+  const onlineCount = vehicles.filter(v => getStatusColor(v) === 'bg-emerald-500').length;
 
   const filteredVehicles = vehicles.filter((vehicle) => {
     const matchesSearch = 
@@ -56,9 +56,11 @@ export function VehicleSidebar({
     if (!matchesSearch) return false;
     
     if (filter === 'all') return true;
-    if (filter === 'moving') return vehicle.speed > 0;
-    if (filter === 'idle') return vehicle.ignition === true && vehicle.speed === 0;
-    if (filter === 'offline') return vehicle.ignition === false && vehicle.speed === 0;
+    
+    const statusColor = getStatusColor(vehicle);
+    if (filter === 'online') return statusColor === 'bg-emerald-500';
+    if (filter === 'offline') return statusColor === 'bg-gray-400';
+    if (filter === 'alert') return statusColor === 'bg-red-500';
     
     return true;
   });
@@ -118,40 +120,70 @@ export function VehicleSidebar({
         </div>
 
         {/* Stats Cards - 4 columns */}
-        <div className="grid grid-cols-4 gap-1.5 mb-4">
-          <div className="p-2 rounded-lg bg-secondary/50 border border-border text-center">
-            <div className="flex items-center justify-center mb-1">
-              <Car className="w-3.5 h-3.5 text-accent" />
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          {/* Online - Green */}
+          <button
+            onClick={() => setFilter(filter === 'online' ? 'all' : 'online')}
+            className={cn(
+              "p-2.5 rounded-lg border text-center transition-all cursor-pointer",
+              filter === 'online'
+                ? "bg-emerald-500/20 border-emerald-500"
+                : "bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/15"
+            )}
+          >
+            <div className="flex items-center justify-center gap-1.5 mb-1">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <Wifi className="w-3.5 h-3.5 text-emerald-500" />
             </div>
-            <p className="text-base font-display font-bold text-foreground">{vehicles.length}</p>
-            <p className="text-[8px] text-muted-foreground uppercase">Total</p>
-          </div>
+            <p className="text-lg font-display font-bold text-emerald-500">{onlineCount}</p>
+            <p className="text-[9px] text-emerald-500/70 uppercase font-semibold">Online</p>
+          </button>
           
-          <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/30 text-center">
-            <div className="flex items-center justify-center mb-1">
-              <Activity className="w-3.5 h-3.5 text-blue-500" />
+          {/* Offline - Gray */}
+          <button
+            onClick={() => setFilter(filter === 'offline' ? 'all' : 'offline')}
+            className={cn(
+              "p-2.5 rounded-lg border text-center transition-all cursor-pointer",
+              filter === 'offline'
+                ? "bg-gray-400/20 border-gray-400"
+                : "bg-gray-400/10 border-gray-400/30 hover:bg-gray-400/15"
+            )}
+          >
+            <div className="flex items-center justify-center gap-1.5 mb-1">
+              <div className="w-2 h-2 rounded-full bg-gray-400" />
+              <WifiOff className="w-3.5 h-3.5 text-gray-400" />
             </div>
-            <p className="text-base font-display font-bold text-blue-500">{movingCountCalc}</p>
-            <p className="text-[8px] text-blue-500/70 uppercase">Ativos</p>
-          </div>
+            <p className="text-lg font-display font-bold text-gray-400">{offlineCount}</p>
+            <p className="text-[9px] text-gray-400/70 uppercase font-semibold">Offline</p>
+          </button>
           
-          <div className="p-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-center">
-            <div className="flex items-center justify-center mb-1">
-              <Radio className="w-3.5 h-3.5 text-yellow-500" />
+          {/* Alert - Red */}
+          <button
+            onClick={() => setFilter(filter === 'alert' ? 'all' : 'alert')}
+            className={cn(
+              "p-2.5 rounded-lg border text-center transition-all cursor-pointer",
+              filter === 'alert'
+                ? "bg-red-500/20 border-red-500"
+                : "bg-red-500/10 border-red-500/30 hover:bg-red-500/15",
+              alertCount > 0 && "animate-pulse"
+            )}
+          >
+            <div className="flex items-center justify-center gap-1.5 mb-1">
+              <div className={cn("w-2 h-2 rounded-full bg-red-500", alertCount > 0 && "animate-ping")} />
+              <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
             </div>
-            <p className="text-base font-display font-bold text-yellow-500">{idleCount}</p>
-            <p className="text-[8px] text-yellow-500/70 uppercase">Parados</p>
-          </div>
-          
-          <div className="p-2 rounded-lg bg-gray-500/10 border border-gray-500/30 text-center">
-            <div className="flex items-center justify-center mb-1">
-              <WifiOff className="w-3.5 h-3.5 text-gray-500" />
-            </div>
-            <p className="text-base font-display font-bold text-gray-500">{offlineCount}</p>
-            <p className="text-[8px] text-gray-500/70 uppercase">Offline</p>
-          </div>
+            <p className="text-lg font-display font-bold text-red-500">{alertCount}</p>
+            <p className="text-[9px] text-red-500/70 uppercase font-semibold">Alerta</p>
+          </button>
         </div>
 
+        {/* Total count badge */}
+        <div className="flex items-center justify-center gap-2 mb-3 py-1.5 px-3 bg-secondary/30 rounded-lg">
+          <Car className="w-4 h-4 text-accent" />
+          <span className="text-sm font-semibold text-foreground">{vehicles.length}</span>
+          <span className="text-xs text-muted-foreground">veículos na frota</span>
+        </div>
+@@
         {/* Search */}
         <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -164,28 +196,20 @@ export function VehicleSidebar({
           />
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex gap-1 p-1 bg-secondary/30 rounded-lg">
-          {[
-            { key: 'all', label: 'Todos', count: vehicles.length },
-          { key: 'moving', label: 'Ativos', count: movingCountCalc },
-            { key: 'idle', label: 'Parados', count: idleCount },
-            { key: 'offline', label: 'Offline', count: offlineCount },
-          ].map((tab) => (
+        {/* Filter indicator */}
+        {filter !== 'all' && (
+          <div className="flex items-center justify-between mb-2 px-2 py-1.5 bg-accent/10 rounded-lg border border-accent/30">
+            <span className="text-xs font-semibold text-accent">
+              Filtrando: {filter === 'online' ? 'Online' : filter === 'offline' ? 'Offline' : 'Alertas'}
+            </span>
             <button
-              key={tab.key}
-              onClick={() => setFilter(tab.key as typeof filter)}
-              className={cn(
-                "flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all uppercase tracking-wide",
-                filter === tab.key
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
+              onClick={() => setFilter('all')}
+              className="text-xs text-accent hover:underline font-medium"
             >
-              {tab.label}
+              Limpar
             </button>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Vehicle List */}

@@ -51,8 +51,6 @@ export interface VehicleWithStatus extends Vehicle {
 export type StatusColorClass =
   | 'bg-red-500'
   | 'bg-gray-400'
-  | 'bg-yellow-500'
-  | 'bg-amber-300'
   | 'bg-emerald-500';
 
 export function getStatusColor(vehicle: Pick<VehicleWithStatus, 'alarm' | 'alert' | 'blocked' | 'status' | 'speed' | 'devicetime' | 'ignition'>): StatusColorClass {
@@ -62,19 +60,13 @@ export function getStatusColor(vehicle: Pick<VehicleWithStatus, 'alarm' | 'alert
   const diffMinutes = (now.getTime() - lastUpdate.getTime()) / (1000 * 60);
   const isOnline = diffMinutes < 10;
 
-  // SE tiver qualquer valor no campo de alarme OU estiver bloqueado -> VERMELHO
+  // PRIORIDADE 1: SE tiver qualquer valor no campo de alarme OU estiver bloqueado -> VERMELHO
   if (vehicle.alarm || vehicle.alert || vehicle.blocked) return 'bg-red-500';
 
-  // Se não tem alarme E está sem comunicação há mais de 10 min -> CINZA (Offline)
+  // PRIORIDADE 2: Se não tem alarme E está sem comunicação há mais de 10 min -> CINZA (Offline)
   if (!isOnline) return 'bg-gray-400';
 
-  // Se online e velocidade < 2 -> PARADO
-  if (vehicle.speed < 2) {
-    // Ignição ligada = Amarelo forte, Desligada = Amarelo claro
-    return vehicle.ignition !== false ? 'bg-yellow-500' : 'bg-amber-300';
-  }
-
-  // Se online e andando -> VERDE
+  // PRIORIDADE 3: Se online (tem sinal e não tem alarme) -> VERDE (andando OU parado)
   return 'bg-emerald-500';
 }
 
@@ -87,8 +79,6 @@ export function getStatusVisual(vehicle: VehicleWithStatus) {
   const colorMap: Record<StatusColorClass, { text: string; border: string }> = {
     'bg-red-500': { text: 'text-red-500', border: 'border-red-500' },
     'bg-gray-400': { text: 'text-gray-400', border: 'border-gray-400' },
-    'bg-yellow-500': { text: 'text-yellow-500', border: 'border-yellow-500' },
-    'bg-amber-300': { text: 'text-amber-400', border: 'border-amber-300' },
     'bg-emerald-500': { text: 'text-emerald-500', border: 'border-emerald-500' },
   };
   
@@ -97,17 +87,16 @@ export function getStatusVisual(vehicle: VehicleWithStatus) {
 
   const softBgClass = (bgClass + '/10') as string;
 
+  // Simplified triad: speeding (red), offline (gray), moving (green)
   const markerStatus: MarkerStatus =
     bgClass === 'bg-red-500'
       ? 'speeding'
       : bgClass === 'bg-gray-400'
         ? 'offline'
-        : (bgClass === 'bg-yellow-500' || bgClass === 'bg-amber-300')
-          ? 'idle'
-          : 'moving';
+        : 'moving';
 
-  // Unified label derived from the same color logic
-  const statusLabel = 
+  // Simplified label - triad system
+  const statusLabel =
     bgClass === 'bg-red-500'
       ? vehicle.blocked
         ? 'BLOQUEADO'
@@ -116,11 +105,9 @@ export function getStatusVisual(vehicle: VehicleWithStatus) {
           : 'ALERTA ATIVO'
       : bgClass === 'bg-gray-400'
         ? 'OFFLINE / SEM SINAL'
-        : bgClass === 'bg-yellow-500'
-          ? 'PARADO (LIGADO)'
-          : bgClass === 'bg-amber-300'
-            ? 'PARADO (DESLIGADO)'
-            : 'EM MOVIMENTO';
+        : vehicle.speed >= 2
+          ? 'EM MOVIMENTO'
+          : 'ONLINE (PARADO)';
 
   return {
     bgClass,
@@ -133,7 +120,7 @@ export function getStatusVisual(vehicle: VehicleWithStatus) {
 }
 
 // Unified status logic with alert priority
-// Priority: Alert (red) > Offline (gray) > Idle (yellow) > Moving (blue/green)
+// Simplified Triad: Alert (red) > Offline (gray) > Online (green)
 export interface VehicleStatusInfo {
   status: VehicleAlertStatus;
   label: string;
@@ -151,7 +138,7 @@ export function getVehicleStatusWithPriority(vehicle: VehicleWithStatus): Vehicl
   const diffMinutes = (now.getTime() - lastUpdate.getTime()) / (1000 * 60);
   const isStale = diffMinutes > 10;
 
-  // PRIORITY 0 (Maximum) - 🔴 RED: Alerts/Blocks/Violations
+  // PRIORIDADE 1 - 🔴 RED: Alerts/Blocks/Violations
   if (
     vehicle.blocked === true ||
     (vehicle.alarm !== null && vehicle.alarm !== undefined) ||
@@ -174,8 +161,8 @@ export function getVehicleStatusWithPriority(vehicle: VehicleWithStatus): Vehicl
     };
   }
 
-  // PRIORITY 1 - ⚪ GRAY: Offline
-  if (vehicle.status === 'offline' || isStale || vehicle.ignition === false) {
+  // PRIORIDADE 2 - ⚪ GRAY: Offline (sem comunicação > 10 min)
+  if (vehicle.status === 'offline' || isStale) {
     return {
       status: 'offline',
       label: 'OFFLINE',
@@ -187,23 +174,10 @@ export function getVehicleStatusWithPriority(vehicle: VehicleWithStatus): Vehicl
     };
   }
 
-  // PRIORITY 2 - 🟡 YELLOW: Stopped (speed < 2)
-  if (vehicle.speed < 2) {
-    return {
-      status: 'idle',
-      label: 'PARADO LIGADO',
-      colorClass: 'text-yellow-500',
-      dotClass: 'bg-yellow-500',
-      borderClass: 'border-yellow-500',
-      bgClass: 'bg-yellow-500/10',
-      glowColor: 'rgba(234, 179, 8, 0.4)',
-    };
-  }
-
-  // PRIORITY 3 - 🟢 EMERALD: Moving (speed >= 2)
+  // PRIORIDADE 3 - 🟢 EMERALD: Online (andando OU parado - tem sinal e não tem alarme)
   return {
     status: 'moving',
-    label: 'EM MOVIMENTO',
+    label: vehicle.speed >= 2 ? 'EM MOVIMENTO' : 'ONLINE (PARADO)',
     colorClass: 'text-emerald-500',
     dotClass: 'bg-emerald-500',
     borderClass: 'border-emerald-500',

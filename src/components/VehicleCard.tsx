@@ -52,9 +52,7 @@ export function VehicleCard({ vehicle, isSelected, onClick }: VehicleCardProps) 
                   ? '0 0 15px rgba(239, 68, 68, 0.8)'
                   : bgClass === 'bg-emerald-500'
                     ? '0 0 15px rgba(16, 185, 129, 0.4)'
-                    : bgClass === 'bg-yellow-500'
-                      ? '0 0 15px rgba(234, 179, 8, 0.4)'
-                      : 'none',
+                    : 'none',
             }}
           >
              <span className={textClass}>
