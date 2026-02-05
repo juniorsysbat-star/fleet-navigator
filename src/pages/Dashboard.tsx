@@ -239,24 +239,21 @@ const Dashboard = () => {
     : undefined;
 
   // Handle vehicle update from detail panel
-  const handleVehicleUpdate = useCallback((device: DeviceFormData) => {
+  const handleVehicleUpdate = useCallback(async (device: DeviceFormData) => {
     if (device.id) {
-      updateVehicle(device);
+      await updateVehicle(device);
       toast({
-        title: "Veículo salvo com sucesso (Modo Local)",
+        title: "Veículo salvo com sucesso",
         description: `${device.plate || device.name}`,
       });
     } else {
-      const newVehicle = addVehicle(device);
+      await addVehicle(device);
       toast({
-        title: "Veículo salvo com sucesso (Modo Local)",
+        title: "Veículo criado com sucesso",
         description: `${device.plate || device.name}`,
       });
-      // Select the new vehicle
-      setSelectedVehicleId(newVehicle.device_id);
-      setPanelState('vehicleDetail', 'open');
     }
-  }, [updateVehicle, addVehicle, setPanelState]);
+  }, [updateVehicle, addVehicle]);
 
   return (
     <div className="h-full w-full flex overflow-hidden bg-background">
