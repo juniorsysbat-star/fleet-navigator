@@ -84,12 +84,12 @@
      id: 'queclink',
      name: 'Queclink',
      models: [
-       { id: 'gv300', name: 'GV300', port: 5004 },
-       { id: 'gv310', name: 'GV310', port: 5004 },
-       { id: 'gv500', name: 'GV500', port: 5004 },
-       { id: 'gv55', name: 'GV55', port: 5004 },
-       { id: 'gl300', name: 'GL300', port: 5004 },
-       { id: 'gl320mg', name: 'GL320MG', port: 5004 },
+      { id: 'gv300', name: 'GV300', port: 5006 },
+      { id: 'gv310', name: 'GV310', port: 5006 },
+      { id: 'gv500', name: 'GV500', port: 5006 },
+      { id: 'gv55', name: 'GV55', port: 5006 },
+      { id: 'gl300', name: 'GL300', port: 5006 },
+      { id: 'gl320mg', name: 'GL320MG', port: 5006 },
      ],
    },
    {
@@ -115,9 +115,9 @@
      id: 'topflytech',
      name: 'TopFlytech',
      models: [
-       { id: 't8806', name: 'T8806', port: 5055 },
-       { id: 't8808', name: 'T8808', port: 5055 },
-       { id: 'tld1', name: 'TLD1', port: 5055 },
+      { id: 't8806', name: 'T8806', port: 5059 },
+      { id: 't8808', name: 'T8808', port: 5059 },
+      { id: 'tld1', name: 'TLD1', port: 5059 },
      ],
    },
    {
@@ -134,8 +134,10 @@
      name: 'Outro / Genérico',
      models: [
        { id: 'h02', name: 'Protocolo H02', port: 5013 },
+      { id: 'tk103', name: 'Protocolo TK103', port: 5013 },
        { id: 'osmand', name: 'OsmAnd App', port: 5055 },
        { id: 'traccar', name: 'Traccar Client', port: 5055 },
+      { id: 'generic', name: 'Genérico', port: 5055 },
      ],
    },
  ];
