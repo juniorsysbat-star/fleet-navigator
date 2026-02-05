@@ -55,11 +55,11 @@
                <span className="relative inline-flex rounded-full h-4 w-4 bg-success" />
              </span>
            </div>
-           <h1 className="font-display text-3xl font-bold text-foreground tracking-wider">
-             FLEET<span className="text-accent">AI</span>
+          <h1 className="font-display text-2xl font-bold text-foreground tracking-wider">
+            DATA FLEET <span className="text-accent bg-accent/20 px-2 py-0.5 rounded">PRO</span>
            </h1>
            <p className="text-sm text-muted-foreground mt-1">
-             Sistema de Rastreamento Inteligente
+            Gestão Inteligente de Frotas
            </p>
          </div>
  
@@ -153,7 +153,7 @@
          </form>
  
         <p className="text-center text-xs text-muted-foreground mt-6 leading-relaxed">
-          Desenvolvido por <span className="font-semibold">DATA OMEGA TECNOLOGIA MÓVEL LTDA.</span>
+          © 2024 Data Fleet Pro • Desenvolvido por <span className="font-semibold">DATA OMEGA TECNOLOGIA MÓVEL LTDA.</span>
          </p>
        </div>
      </div>

@@ -117,11 +117,11 @@ import { useTheme } from '@/contexts/ThemeContext';
              )}
              {!isCollapsed && (
                <div className="animate-fade-in">
-                 <h1 className="font-display font-bold text-sm text-foreground tracking-wider">
-                   FLEET<span className="text-accent">AI</span>
+                <h1 className="font-display font-bold text-xs text-foreground tracking-wide flex items-center gap-1">
+                  DATA FLEET <span className="text-accent bg-accent/20 px-1 py-0.5 rounded text-[9px]">PRO</span>
                  </h1>
                  <p className="text-[9px] text-muted-foreground uppercase tracking-widest">
-                   Pro Platform
+                  Gestão de Frotas
                  </p>
                </div>
              )}
@@ -302,8 +302,8 @@ import { useTheme } from '@/contexts/ThemeContext';
              </button>
  
              {!isCollapsed && (
-               <p className="text-[8px] text-muted-foreground/60 text-center leading-tight mt-2">
-                 Desenvolvido por DATA OMEGA TECNOLOGIA MÓVEL LTDA.
+              <p className="text-[7px] text-muted-foreground/60 text-center leading-tight mt-2">
+                © 2024 Data Fleet Pro
                </p>
              )}
            </div>

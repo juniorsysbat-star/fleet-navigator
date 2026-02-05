@@ -89,11 +89,11 @@ export function VehicleSidebar({
               </span>
             </div>
             <div>
-              <h1 className="font-display font-bold text-base text-foreground tracking-wider">
-                COMMAND CENTER
+              <h1 className="font-display font-bold text-sm text-foreground tracking-wide flex items-center gap-1.5">
+                DATA FLEET <span className="text-accent bg-accent/20 px-1.5 py-0.5 rounded text-[10px]">PRO</span>
               </h1>
               <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
-                Fleet Tracking System
+                Gestão de Frotas
               </p>
             </div>
           </div>
