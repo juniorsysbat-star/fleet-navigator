@@ -8,7 +8,6 @@ import {
   Battery, 
   Route, 
   Lock,
-  Car,
   Navigation,
   Rocket,
   Minus,
@@ -20,6 +19,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useState } from 'react';
 import { DeviceModal, DeviceFormData } from '@/components/admin/DeviceModal';
+ import { getVehicleIcon } from '@/utils/vehicleIcons';
+ import { getStatusVisual } from '@/types/vehicle';
 
 interface VehicleDetailPanelProps {
   vehicle: VehicleWithStatus | null;
@@ -49,18 +50,21 @@ export function VehicleDetailPanel({
     console.log('⚠️ Esta é uma ação simulada - nenhum veículo foi realmente bloqueado.');
   };
 
-  const getStatusInfo = () => {
-    if (vehicle.speed > 5) {
-      return { label: 'Em Movimento', color: 'text-success', dotClass: 'bg-success' };
-    } else if (vehicle.ignition) {
-      return { label: 'Parado Ligado', color: 'text-warning', dotClass: 'bg-warning' };
-    } else if (!vehicle.ignition && vehicle.speed === 0) {
-      return { label: 'Offline', color: 'text-destructive', dotClass: 'bg-destructive' };
-    }
-    return { label: 'Desconhecido', color: 'text-muted-foreground', dotClass: 'bg-muted-foreground' };
-  };
-
-  const statusInfo = getStatusInfo();
+   // Usar lógica unificada de status
+   const { bgClass, textClass, borderClass } = getStatusVisual(vehicle);
+   const isAlert = bgClass === 'bg-red-500';
+   
+   const statusLabel = isAlert
+     ? vehicle.blocked
+       ? 'BLOQUEADO'
+       : vehicle.alarm
+         ? 'ALERTA ATIVO'
+         : 'VIOLAÇÃO'
+     : bgClass === 'bg-gray-500'
+       ? 'OFFLINE'
+       : bgClass === 'bg-yellow-500'
+         ? 'PARADO LIGADO'
+         : 'EM MOVIMENTO';
   const timeAgo = formatDistanceToNow(new Date(vehicle.devicetime), { 
     addSuffix: true, 
     locale: ptBR 
@@ -103,17 +107,29 @@ export function VehicleDetailPanel({
       <div className="p-4 border-b border-sidebar-border">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-accent/20 to-primary/20 flex items-center justify-center border border-accent/30">
-              <Car className="w-5 h-5 text-accent" />
+             <div 
+               className={cn(
+                 "w-10 h-10 rounded-lg flex items-center justify-center border-2",
+                 borderClass,
+                 bgClass + "/10",
+                 isAlert && "animate-pulse"
+               )}
+               style={{
+                 boxShadow: isAlert ? '0 0 15px rgba(239, 68, 68, 0.8)' : undefined
+               }}
+             >
+               <span className={textClass}>
+                 {getVehicleIcon({ type: vehicle.vehicleType, className: "w-5 h-5" })}
+               </span>
             </div>
             <div>
               <h2 className="font-display font-bold text-lg text-foreground">
                 {vehicle.device_name}
               </h2>
               <div className="flex items-center gap-2">
-                <span className={cn("w-2 h-2 rounded-full", statusInfo.dotClass)} />
-                <span className={cn("text-xs font-medium", statusInfo.color)}>
-                  {statusInfo.label}
+                 <span className={cn("w-2 h-2 rounded-full", bgClass)} />
+                 <span className={cn("text-xs font-medium", textClass)}>
+                   {statusLabel}
                 </span>
               </div>
             </div>

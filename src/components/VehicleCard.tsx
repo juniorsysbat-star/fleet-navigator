@@ -1,6 +1,7 @@
-import { VehicleWithStatus, getStatusColor, getStatusVisual } from '@/types/vehicle';
-import { Car, Gauge, MapPin, Clock } from 'lucide-react';
+ import { VehicleWithStatus, getStatusVisual } from '@/types/vehicle';
+ import { Gauge, MapPin, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+ import { getVehicleIcon } from '@/utils/vehicleIcons';
 
 interface VehicleCardProps {
   vehicle: VehicleWithStatus;
@@ -55,7 +56,8 @@ export function VehicleCard({ vehicle, isSelected, onClick }: VehicleCardProps) 
               "w-10 h-10 rounded-full flex items-center justify-center",
               "border-2 transition-all duration-300",
               borderClass,
-              softBgClass
+                softBgClass,
+                isAlert && "animate-pulse"
             )}
             style={{
               boxShadow:
@@ -68,9 +70,9 @@ export function VehicleCard({ vehicle, isSelected, onClick }: VehicleCardProps) 
                       : 'none',
             }}
           >
-            <Car
-              className={cn("w-5 h-5", textClass)}
-            />
+             <span className={textClass}>
+               {getVehicleIcon({ type: vehicle.vehicleType, className: "w-5 h-5" })}
+             </span>
           </div>
           
           {/* Pulsing dot for alerts or moving vehicles */}

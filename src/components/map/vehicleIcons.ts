@@ -2,13 +2,20 @@
  import { VehicleType } from '@/types/vehicle';
  
  // SVG paths for different vehicle types (Lucide-style icons)
- export const VEHICLE_SVG_PATHS: Record<VehicleType, string> = {
-   sedan: `<path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>`,
-   motorcycle: `<circle cx="5" cy="17" r="2.5"/><circle cx="17" cy="17" r="2.5"/><path d="M12 17V5l3 5h-3"/><path d="m8 17 2-5h4l3 5"/>`,
-   truck: `<path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>`,
-   pickup: `<path d="M14 17h1a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2H2v6h2"/><path d="M2 11V5a2 2 0 0 1 2-2h6.5a.5.5 0 0 1 .5.5V11"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>`,
-   tractor: `<path d="M3 4h8l2 4h4a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-1"/><circle cx="7" cy="16" r="4"/><circle cx="17" cy="14" r="2"/><path d="M3 16h1"/>`,
-   bus: `<path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4c-1.1 0-2.1.8-2.4 1.8l-1.4 5c-.1.4-.2.8-.2 1.2 0 .4.1.8.2 1.2.3 1.1.8 2.8.8 2.8h3"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>`,
+ // Mapeamento atualizado para corresponder ao utils/vehicleIcons.tsx
+ export const VEHICLE_SVG_PATHS: Record<string, string> = {
+   // Carros (CarFront icon path)
+   sedan: `<path d="m21 8-2 2-1.5-3.7A2 2 0 0 0 15.646 5H8.4a2 2 0 0 0-1.903 1.257L5 10 3 8"/><path d="M7 14h.01"/><path d="M17 14h.01"/><rect width="18" height="8" x="3" y="10" rx="2"/><path d="M5 18v2"/><path d="M19 18v2"/>`,
+   car: `<path d="m21 8-2 2-1.5-3.7A2 2 0 0 0 15.646 5H8.4a2 2 0 0 0-1.903 1.257L5 10 3 8"/><path d="M7 14h.01"/><path d="M17 14h.01"/><rect width="18" height="8" x="3" y="10" rx="2"/><path d="M5 18v2"/><path d="M19 18v2"/>`,
+   pickup: `<path d="m21 8-2 2-1.5-3.7A2 2 0 0 0 15.646 5H8.4a2 2 0 0 0-1.903 1.257L5 10 3 8"/><path d="M7 14h.01"/><path d="M17 14h.01"/><rect width="18" height="8" x="3" y="10" rx="2"/><path d="M5 18v2"/><path d="M19 18v2"/>`,
+   
+   // Caminhões (Truck icon path)
+   truck: `<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 13.52 8H12"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>`,
+   bus: `<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 13.52 8H12"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>`,
+   tractor: `<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 13.52 8H12"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>`,
+   
+   // Motos (Bike icon path)
+   motorcycle: `<circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>`,
  };
  
  // Status color definitions
@@ -23,7 +30,7 @@
  // Create custom marker icon with vehicle type and optional custom color
  export const createVehicleIcon = (
    status: 'moving' | 'idle' | 'offline' | 'unknown' | 'speeding',
-   vehicleType: VehicleType = 'sedan',
+   vehicleType: VehicleType | string = 'sedan',
    customColor?: string
  ): L.DivIcon => {
    const statusColors = STATUS_COLORS[status];
@@ -32,7 +39,8 @@
   const glowColor = statusColors.glow;
    
    const isSpeeding = status === 'speeding';
-   const svgPath = VEHICLE_SVG_PATHS[vehicleType] || VEHICLE_SVG_PATHS.sedan;
+   const normalizedType = (vehicleType || 'sedan').toLowerCase();
+   const svgPath = VEHICLE_SVG_PATHS[normalizedType] || VEHICLE_SVG_PATHS.sedan;
    
    return L.divIcon({
      className: 'custom-vehicle-marker',
