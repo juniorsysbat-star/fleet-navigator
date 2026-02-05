@@ -14,6 +14,8 @@
    UserCheck,
    Wrench,
    Power,
+  Sun,
+  Moon,
  } from 'lucide-react';
  import { cn } from '@/lib/utils';
  import { useState } from 'react';
@@ -21,6 +23,7 @@
  import { useCustomization } from '@/contexts/CustomizationContext';
  import { useLanguage } from '@/contexts/LanguageContext';
  import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
   import { useVehiclesContext } from '@/contexts/VehiclesContext';
  import { DeviceModal, DeviceFormData } from '@/components/admin/DeviceModal';
  import { toast } from '@/hooks/use-toast';
@@ -33,6 +36,7 @@
    const { settings } = useCustomization();
    const { t, isRTL } = useLanguage();
    const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
     const { addVehicle, isUsingMockData, isDemoMode } = useVehiclesContext();
  
    const navItems = [
@@ -245,6 +249,40 @@
  
            {/* Collapse Toggle */}
            <div className="p-3 space-y-2">
+            {/* Theme Toggle */}
+            {isCollapsed ? (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={toggleTheme}
+                    className="w-full flex items-center justify-center p-2 rounded-lg bg-secondary/50 hover:bg-secondary border border-border transition-all text-muted-foreground hover:text-foreground"
+                  >
+                    {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <span className="font-semibold">{theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}</span>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <button
+                onClick={toggleTheme}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-secondary/50 hover:bg-secondary border border-border transition-all text-muted-foreground hover:text-foreground text-sm font-medium"
+              >
+                {theme === 'dark' ? (
+                  <>
+                    <Sun className="w-4 h-4" />
+                    <span>Modo Claro</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon className="w-4 h-4" />
+                    <span>Modo Escuro</span>
+                  </>
+                )}
+              </button>
+            )}
+
              <button
                onClick={() => setIsCollapsed(!isCollapsed)}
                className={cn(
