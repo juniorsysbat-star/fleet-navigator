@@ -181,10 +181,24 @@ export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModal
   const SelectedVehicleIcon = VEHICLE_TYPES.find(v => v.type === vehicleType)?.icon || Car;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+    <div 
+      className="fixed inset-0 z-[9999] flex items-center justify-center"
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <div 
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm" 
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }} 
+      />
       
-      <div className="relative z-[9999] w-full max-w-lg mx-4 bg-card border border-border rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto scrollbar-cyber">
+      <div 
+        className="relative z-[9999] w-full max-w-lg mx-4 bg-card border border-border rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto scrollbar-cyber"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-card z-10">
           <div className="flex items-center gap-3">
@@ -199,6 +213,7 @@ export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModal
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-secondary transition-colors"
           >
@@ -207,7 +222,7 @@ export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModal
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-4 space-y-5">
+        <form onSubmit={handleSubmit} className="p-4 space-y-5" onClick={(e) => e.stopPropagation()}>
            {/* Step 1: Manufacturer Selection */}
            <div className="space-y-3">
              <Label className="flex items-center gap-2 text-accent">
