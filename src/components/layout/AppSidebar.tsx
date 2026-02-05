@@ -7,50 +7,67 @@ import {
   Navigation,
   ChevronLeft,
   ChevronRight,
-  Users
+  Users,
+  Plus,
+  Cpu
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useCustomization } from '@/contexts/CustomizationContext';
+import { DeviceModal, DeviceFormData } from '@/components/admin/DeviceModal';
+import { toast } from '@/hooks/use-toast';
 
-const navItems = [
+export function AppSidebar() {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
+  const location = useLocation();
+  const { settings } = useCustomization();
+
+  const navItems = [
   { 
     path: '/', 
     icon: Map, 
-    label: 'Rastreamento', 
+      label: settings.moduleNames.tracking, 
     description: 'Mapa em tempo real' 
   },
   { 
     path: '/analytics', 
     icon: Brain, 
-    label: 'IA Analytics', 
+      label: settings.moduleNames.analytics, 
     description: 'Gestão inteligente' 
   },
   { 
     path: '/billing', 
     icon: CreditCard, 
-    label: 'Financeiro', 
+      label: settings.moduleNames.billing, 
     description: 'Cobranças e clientes' 
   },
   { 
     path: '/admin/users', 
     icon: Users, 
-    label: 'Usuários', 
+      label: settings.moduleNames.users, 
     description: 'Gestão de clientes' 
   },
   { 
     path: '/settings', 
     icon: Settings, 
-    label: 'Configurações', 
+      label: settings.moduleNames.settings, 
     description: 'Preferências' 
   },
-];
+  ];
 
-export function AppSidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const location = useLocation();
+  const handleAddDevice = (device: DeviceFormData) => {
+    // In a real app, this would call an API
+    console.log('New device:', device);
+    toast({
+      title: 'Dispositivo Adicionado!',
+      description: `${device.name} (IMEI: ${device.imei}) foi cadastrado com sucesso.`,
+    });
+  };
 
   return (
+    <>
     <aside 
       className={cn(
         "h-screen flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out",
@@ -60,13 +77,19 @@ export function AppSidebar() {
       {/* Logo */}
       <div className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-accent/30 to-primary/30 flex items-center justify-center border border-accent/40 shrink-0 relative">
-            <Navigation className="w-5 h-5 text-accent" />
+            {settings.logoUrl ? (
+              <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-accent/40">
+                <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+              </div>
+            ) : (
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-accent/30 to-primary/30 flex items-center justify-center border border-accent/40 shrink-0 relative">
+                <Navigation className="w-5 h-5 text-accent" />
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5">
               <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-75 animate-ping" />
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-success" />
             </span>
           </div>
+            )}
           {!isCollapsed && (
             <div className="animate-fade-in">
               <h1 className="font-display font-bold text-sm text-foreground tracking-wider">
@@ -79,6 +102,33 @@ export function AppSidebar() {
           )}
         </div>
       </div>
+
+        {/* Add Device Button */}
+        <div className="p-3 border-b border-sidebar-border">
+          {isCollapsed ? (
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setIsDeviceModalOpen(true)}
+                  className="w-full flex items-center justify-center p-3 rounded-lg bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 transition-all"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <span className="font-semibold">Novo Dispositivo</span>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={() => setIsDeviceModalOpen(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 transition-all font-semibold text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Novo Dispositivo</span>
+            </button>
+          )}
+        </div>
 
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1">
@@ -167,5 +217,13 @@ export function AppSidebar() {
         </button>
       </div>
     </aside>
+
+      {/* Device Modal */}
+      <DeviceModal
+        isOpen={isDeviceModalOpen}
+        onClose={() => setIsDeviceModalOpen(false)}
+        onSave={handleAddDevice}
+      />
+    </>
   );
 }
