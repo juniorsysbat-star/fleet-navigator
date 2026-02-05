@@ -34,6 +34,7 @@ import {
 } from 'recharts';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { FuelDashboard } from '@/components/fuel/FuelDashboard';
 
 const Analytics = () => {
   const getScoreColor = (score: number) => {
@@ -266,55 +267,7 @@ const Analytics = () => {
       </div>
 
       {/* Fuel Consumption Chart */}
-      <div className="rounded-xl bg-card border border-border p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Fuel className="w-5 h-5 text-accent" />
-            <h2 className="font-display text-lg font-bold text-foreground">Consumo de Combustível por Frota</h2>
-          </div>
-          <div className="flex gap-4 text-xs">
-            <span className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-accent" /> Frota SP
-            </span>
-            <span className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-success" /> Frota RJ
-            </span>
-            <span className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded bg-warning" /> Frota MG
-            </span>
-          </div>
-        </div>
-        
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={MOCK_FUEL_CONSUMPTION}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis 
-                dataKey="month" 
-                stroke="hsl(var(--muted-foreground))"
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-              />
-              <YAxis 
-                stroke="hsl(var(--muted-foreground))"
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                tickFormatter={(value) => `${value}L`}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px',
-                  color: 'hsl(var(--foreground))',
-                }}
-                labelStyle={{ color: 'hsl(var(--foreground))' }}
-              />
-              <Bar dataKey="fleet1" name="Frota SP" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="fleet2" name="Frota RJ" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="fleet3" name="Frota MG" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      <FuelDashboard />
     </div>
   );
 };
