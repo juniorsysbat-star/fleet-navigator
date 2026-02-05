@@ -4,7 +4,7 @@ import { API_CONFIG, getPositionsUrl } from '@/config/api';
 import { getAnimatedMockVehicles } from '@/data/mockVehicles';
  import { generateDemoVehicles, animateDemoVehicles } from '@/data/mockDemoVehicles';
  import { useAuth } from '@/contexts/AuthContext';
-import { DeviceFormData } from '@/components/admin/DeviceModal';
+import type { DeviceFormData } from '@/components/admin/DeviceModal';
 
  export function useVehicles(forceDemoMode?: boolean) {
    // Tenta usar o contexto de auth, mas fallback para false se não estiver disponível
@@ -19,10 +19,16 @@ import { DeviceFormData } from '@/components/admin/DeviceModal';
    }
    
    const isDemo = forceDemoMode ?? isDemoFromContext;
+
+   // Fontes de dados mock para persistência durante a sessão
+   const demoVehiclesRef = useRef<Vehicle[]>([]);
+   const mockVehiclesRef = useRef<Vehicle[]>([]);
    
   // Inicializa com dados mock para liberar tela imediatamente
   const [vehicles, setVehicles] = useState<VehicleWithStatus[]>(() => {
     const initialMock = getAnimatedMockVehicles();
+     // Mantém base mock para permitir CRUD durante a sessão (sem sobrescrever em refresh)
+     mockVehiclesRef.current = initialMock;
     return initialMock.map(v => ({
       ...v,
       isMoving: v.speed > 0,
@@ -35,10 +41,25 @@ import { DeviceFormData } from '@/components/admin/DeviceModal';
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [isUsingMockData, setIsUsingMockData] = useState(true); // Assume mock até API responder
-   const demoVehiclesRef = useRef<Vehicle[]>([]);
   const retryCountRef = useRef(0);
   const hasTriedApiRef = useRef(false);
   const autoFallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+   const animateLocalMockVehicles = useCallback((list: Vehicle[]): Vehicle[] => {
+     return list.map((vehicle) => ({
+       ...vehicle,
+       speed: vehicle.speed > 0
+         ? Math.max(0, vehicle.speed + (Math.random() - 0.5) * 10)
+         : 0,
+       latitude: vehicle.speed > 0
+         ? vehicle.latitude + (Math.random() - 0.5) * 0.001
+         : vehicle.latitude,
+       longitude: vehicle.speed > 0
+         ? vehicle.longitude + (Math.random() - 0.5) * 0.001
+         : vehicle.longitude,
+       devicetime: new Date().toISOString(),
+     }));
+   }, []);
 
   const processVehicles = (data: Vehicle[], isMock: boolean = false): VehicleWithStatus[] => {
     return data.map((vehicle) => {
@@ -74,8 +95,12 @@ import { DeviceFormData } from '@/components/admin/DeviceModal';
  
     // Se forçar dados mockados ou já falhou antes, use-os diretamente
     if (API_CONFIG.FORCE_MOCK_DATA) {
-      const mockData = getAnimatedMockVehicles();
-      setVehicles(processVehicles(mockData, true));
+      if (mockVehiclesRef.current.length === 0) {
+        mockVehiclesRef.current = getAnimatedMockVehicles();
+      } else {
+        mockVehiclesRef.current = animateLocalMockVehicles(mockVehiclesRef.current);
+      }
+      setVehicles(processVehicles(mockVehiclesRef.current, true));
       setLastUpdate(new Date());
       setIsUsingMockData(true);
       setIsLoading(false);
@@ -114,8 +139,12 @@ import { DeviceFormData } from '@/components/admin/DeviceModal';
       hasTriedApiRef.current = true;
       
       // Fallback silencioso para mock data
-      const mockData = getAnimatedMockVehicles();
-      setVehicles(processVehicles(mockData, true));
+      if (mockVehiclesRef.current.length === 0) {
+        mockVehiclesRef.current = getAnimatedMockVehicles();
+      } else {
+        mockVehiclesRef.current = animateLocalMockVehicles(mockVehiclesRef.current);
+      }
+      setVehicles(processVehicles(mockVehiclesRef.current, true));
       setLastUpdate(new Date());
       setIsUsingMockData(true);
       setError(null); // Nunca mostra erro - usa mock silenciosamente
@@ -135,7 +164,7 @@ import { DeviceFormData } from '@/components/admin/DeviceModal';
     } finally {
       setIsLoading(false);
     }
-   }, [isDemo, isDemoFromContext, loginDemoFn]);
+    }, [isDemo, isDemoFromContext, loginDemoFn, animateLocalMockVehicles]);
 
   useEffect(() => {
     // Limpa timer ao desmontar
@@ -159,20 +188,37 @@ import { DeviceFormData } from '@/components/admin/DeviceModal';
 
   // Update vehicle in local state (for demo mode persistence)
   const updateVehicle = useCallback((device: DeviceFormData) => {
+    if (!device.id) return;
+
+    const applyToVehicle = (v: VehicleWithStatus | Vehicle): VehicleWithStatus | Vehicle => ({
+      ...v,
+      device_name: device.plate || device.name || v.device_name,
+      vehicleType: device.vehicleType ?? v.vehicleType,
+      iconColor: device.iconColor ?? v.iconColor,
+      documentation: {
+        ipvaExpiry: device.ipvaExpiry,
+        insuranceExpiry: device.insuranceExpiry,
+        licensingExpiry: device.licensingExpiry,
+        trailers: device.trailers,
+      },
+    });
+
+    // Atualiza as fontes (para não ser sobrescrito no refresh)
+    if (demoVehiclesRef.current.length > 0) {
+      demoVehiclesRef.current = demoVehiclesRef.current.map(v =>
+        v.device_id === device.id ? (applyToVehicle(v) as Vehicle) : v
+      );
+    }
+
+    if (mockVehiclesRef.current.length > 0) {
+      mockVehiclesRef.current = mockVehiclesRef.current.map(v =>
+        v.device_id === device.id ? (applyToVehicle(v) as Vehicle) : v
+      );
+    }
+
     setVehicles(prev => prev.map(v => {
       if (v.device_id === device.id) {
-        return {
-          ...v,
-          device_name: device.plate || device.name,
-          vehicleType: device.vehicleType,
-          iconColor: device.iconColor,
-          documentation: {
-            ipvaExpiry: device.ipvaExpiry,
-            insuranceExpiry: device.insuranceExpiry,
-            licensingExpiry: device.licensingExpiry,
-            trailers: device.trailers,
-          },
-        };
+        return applyToVehicle(v) as VehicleWithStatus;
       }
       return v;
     }));
@@ -180,9 +226,10 @@ import { DeviceFormData } from '@/components/admin/DeviceModal';
 
   // Add new vehicle to local state (for demo mode persistence)
   const addVehicle = useCallback((device: DeviceFormData) => {
-    const newVehicle: VehicleWithStatus = {
-      device_id: device.imei || `demo-${Date.now()}`,
-      device_name: device.plate || device.name,
+    const id = device.imei || `local-${Date.now()}`;
+    const baseVehicle: Vehicle = {
+      device_id: id,
+      device_name: device.plate || device.name || id,
       latitude: -23.5505 + (Math.random() - 0.5) * 2,
       longitude: -46.6333 + (Math.random() - 0.5) * 2,
       speed: 0,
@@ -196,6 +243,17 @@ import { DeviceFormData } from '@/components/admin/DeviceModal';
         licensingExpiry: device.licensingExpiry,
         trailers: device.trailers,
       },
+    };
+
+    // Atualiza a fonte ativa para persistir no refresh
+    if (isDemo) {
+      demoVehiclesRef.current = [baseVehicle, ...demoVehiclesRef.current];
+    } else {
+      mockVehiclesRef.current = [baseVehicle, ...mockVehiclesRef.current];
+    }
+
+    const newVehicle: VehicleWithStatus = {
+      ...baseVehicle,
       isMoving: false,
       status: 'stopped',
       ignition: false,
@@ -203,7 +261,7 @@ import { DeviceFormData } from '@/components/admin/DeviceModal';
     };
     setVehicles(prev => [newVehicle, ...prev]);
     return newVehicle;
-  }, []);
+  }, [isDemo]);
 
   return {
     vehicles,
