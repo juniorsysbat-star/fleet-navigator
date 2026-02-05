@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Geofence } from '@/data/mockGeofences';
+import { Geofence } from '@/types/geofence';
 import { 
   MapPin, 
   Trash2, 

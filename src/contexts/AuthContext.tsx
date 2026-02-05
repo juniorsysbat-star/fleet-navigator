@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 import { User } from "@/types/user";
-import { apiLogin, apiLogout, getAuthToken, setAuthToken } from "@/services/apiService";
+import { apiLogin, apiLogout } from "@/services/apiService";
 
 const AUTH_STORAGE_KEY = "datafleet_user";
 
@@ -10,7 +10,7 @@ const mapTraccarUserToLocal = (traccarUser: any): User => {
     id: String(traccarUser.id),
     name: traccarUser.name || traccarUser.email,
     email: traccarUser.email,
-    role: traccarUser.administrator ? "super_admin" : "user", // Adaptação simples
+    role: traccarUser.administrator ? "super_admin" : "user",
     status: traccarUser.disabled ? "inactive" : "active",
     createdAt: new Date(),
   };
@@ -19,10 +19,8 @@ const mapTraccarUserToLocal = (traccarUser: any): User => {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  isDemoMode: boolean;
   isApiConnected: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  loginDemo: () => void;
   logout: () => void;
 }
 
@@ -38,13 +36,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   });
 
-  const [isDemoMode, setIsDemoMode] = useState(false);
   const [isApiConnected, setIsApiConnected] = useState(false);
 
-  // Check inicial de sessão (opcional, pode ser implementado depois)
   useEffect(() => {
-    if (user && !isDemoMode) setIsApiConnected(true);
-  }, [user, isDemoMode]);
+    if (user) setIsApiConnected(true);
+  }, [user]);
 
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
     try {
@@ -55,7 +51,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setUser(newUser);
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
-        setIsDemoMode(false);
         setIsApiConnected(true);
         return true;
       }
@@ -66,22 +61,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const loginDemo = useCallback(() => {
-    // Seu código de demo original aqui se quiser manter...
-    setIsDemoMode(true);
-  }, []);
-
   const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem(AUTH_STORAGE_KEY);
-    setIsDemoMode(false);
     setIsApiConnected(false);
     apiLogout();
   }, []);
 
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated: !!user, isDemoMode, isApiConnected, login, loginDemo, logout }}
+      value={{ user, isAuthenticated: !!user, isApiConnected, login, logout }}
     >
       {children}
     </AuthContext.Provider>

@@ -12,7 +12,6 @@ import { onVehicleUpdate, isSocketConnected } from "@/services/socketService";
 import { toast } from "@/hooks/use-toast";
 
 export function useVehicles() {
-  // Começa VAZIO - Sem mentiras
   const [vehicles, setVehicles] = useState<VehicleWithStatus[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,20 +36,19 @@ export function useVehicles() {
         isMoving: vehicle.speed > 0,
         status: vehicle.speed > 5 ? "moving" : vehicle.speed > 0 ? "idle" : "stopped",
         ignition: extendedVehicle.ignition ?? vehicle.speed > 0,
-        batteryLevel: 100, // Valor padrão se a API não mandar
+        batteryLevel: 100,
         blocked: extendedVehicle.blocked,
         alarm: extendedVehicle.alarm,
       };
     });
   };
 
-  // Busca dados da API REAL
+  // Busca dados da API
   const fetchVehicles = useCallback(async () => {
     try {
       setError(null);
       const normalizedData = await fetchVehiclesFromApi();
 
-      // Se a API retornar vazio, é vazio mesmo
       if (!normalizedData || normalizedData.length === 0) {
         setVehicles([]);
         return;
@@ -61,7 +59,6 @@ export function useVehicles() {
       setLastUpdate(new Date());
     } catch (err) {
       console.error("Erro ao buscar veículos:", err);
-      // Não usamos mais mocks em caso de erro
       setError("Falha ao conectar com o servidor. Verifique sua conexão.");
     } finally {
       setIsLoading(false);
@@ -106,14 +103,12 @@ export function useVehicles() {
     async (device: DeviceFormData) => {
       if (!device.id) return;
       try {
-        // Chama a API de verdade
         await apiUpdateVehicle(device.id, {
           id: Number(device.id),
           name: device.plate || device.name,
           uniqueId: device.imei,
         });
 
-        // Atualiza lista local após sucesso
         fetchVehicles();
       } catch (err) {
         console.error("Erro ao atualizar veículo:", err);
@@ -131,16 +126,12 @@ export function useVehicles() {
   const addVehicle = useCallback(
     async (device: DeviceFormData) => {
       try {
-        // Chama a API de verdade
         await createVehicle({
           name: device.plate || device.name,
           uniqueId: device.imei,
         });
 
-        // Atualiza lista local após sucesso
         fetchVehicles();
-
-        return { device_id: "temp", device_name: "Salvando..." } as any; // Retorno temporário
       } catch (err) {
         console.error("Erro ao criar veículo:", err);
         toast({
@@ -164,8 +155,6 @@ export function useVehicles() {
     lastUpdate,
     movingCount,
     stoppedCount,
-    isUsingMockData: false, // Nunca mais será true
-    isDemoMode: false,
     isSocketConnected: isSocketConnected(),
     isApiConnected: true,
     refetch: fetchVehicles,
