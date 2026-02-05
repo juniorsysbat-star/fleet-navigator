@@ -12,6 +12,8 @@
    LogOut,
    Building2,
   Megaphone,
+  UserCheck,
+  Wrench,
  } from 'lucide-react';
  import { cn } from '@/lib/utils';
  import { useState } from 'react';
@@ -34,6 +36,8 @@
    const navItems = [
      { path: '/', icon: Map, label: settings.moduleNames.tracking || t('nav.tracking') },
      { path: '/analytics', icon: Brain, label: settings.moduleNames.analytics || t('nav.analytics') },
+    { path: '/drivers', icon: UserCheck, label: 'Motoristas' },
+    { path: '/maintenances', icon: Wrench, label: 'Manutenções' },
      { path: '/billing', icon: CreditCard, label: settings.moduleNames.billing || t('nav.billing') },
      { path: '/admin/users', icon: Users, label: settings.moduleNames.users || t('nav.users') },
      { path: '/settings', icon: Settings, label: settings.moduleNames.settings || t('nav.settings') },

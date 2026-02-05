@@ -1,4 +1,6 @@
 // Mock data for AI Analytics module
+ import { MOCK_DRIVERS } from './mockDrivers';
+ import { MOCK_VEHICLES } from './mockVehicles';
 
 export interface DriverScore {
   id: string;
@@ -30,63 +32,35 @@ export interface FuelConsumption {
   fleet3: number;
 }
 
-export const MOCK_DRIVER_SCORES: DriverScore[] = [
-  {
-    id: 'driver-001',
-    name: 'Carlos Silva',
-    vehicleName: 'Caminhão 01',
-    score: 95,
-    speedViolations: 2,
-    harshBraking: 3,
-    harshTurns: 1,
-    totalKm: 15420,
-    trend: 'up',
-  },
-  {
-    id: 'driver-002',
-    name: 'Maria Santos',
-    vehicleName: 'Van 03',
-    score: 88,
-    speedViolations: 5,
-    harshBraking: 8,
-    harshTurns: 4,
-    totalKm: 12350,
-    trend: 'stable',
-  },
-  {
-    id: 'driver-003',
-    name: 'João Oliveira',
-    vehicleName: 'Carro 02',
-    score: 72,
-    speedViolations: 12,
-    harshBraking: 15,
-    harshTurns: 8,
-    totalKm: 18900,
-    trend: 'down',
-  },
-  {
-    id: 'driver-004',
-    name: 'Ana Costa',
-    vehicleName: 'Moto 04',
-    score: 91,
-    speedViolations: 4,
-    harshBraking: 2,
-    harshTurns: 3,
-    totalKm: 9800,
-    trend: 'up',
-  },
-  {
-    id: 'driver-005',
-    name: 'Pedro Lima',
-    vehicleName: 'Caminhonete 05',
-    score: 65,
-    speedViolations: 18,
-    harshBraking: 22,
-    harshTurns: 12,
-    totalKm: 21500,
-    trend: 'down',
-  },
-];
+ // Gera scores baseados nos motoristas reais cadastrados
+ const generateDriverScores = (): DriverScore[] => {
+   const scoreData = [
+     { score: 95, speedViolations: 2, harshBraking: 3, harshTurns: 1, totalKm: 15420, trend: 'up' as const },
+     { score: 88, speedViolations: 5, harshBraking: 8, harshTurns: 4, totalKm: 12350, trend: 'stable' as const },
+     { score: 72, speedViolations: 12, harshBraking: 15, harshTurns: 8, totalKm: 18900, trend: 'down' as const },
+     { score: 91, speedViolations: 4, harshBraking: 2, harshTurns: 3, totalKm: 9800, trend: 'up' as const },
+     { score: 65, speedViolations: 18, harshBraking: 22, harshTurns: 12, totalKm: 21500, trend: 'down' as const },
+   ];
+ 
+   return MOCK_DRIVERS.map((driver, index) => {
+     const data = scoreData[index % scoreData.length];
+     const vehicle = MOCK_VEHICLES.find(v => v.device_id === driver.currentVehicleId);
+     
+     return {
+       id: driver.id,
+       name: driver.name,
+       vehicleName: vehicle?.device_name || 'Não atribuído',
+       score: data.score,
+       speedViolations: data.speedViolations,
+       harshBraking: data.harshBraking,
+       harshTurns: data.harshTurns,
+       totalKm: data.totalKm,
+       trend: data.trend,
+     };
+   });
+ };
+ 
+ export const MOCK_DRIVER_SCORES: DriverScore[] = generateDriverScores();
 
 export const MOCK_MAINTENANCE_PREDICTIONS: MaintenancePrediction[] = [
   {

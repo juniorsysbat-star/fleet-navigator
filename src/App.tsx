@@ -17,6 +17,8 @@
  import ResellerBilling from "./pages/ResellerBilling";
 import Announcements from "./pages/Announcements";
 import { AnnouncementModal } from "@/components/announcements/AnnouncementModal";
+ import Drivers from "./pages/Drivers";
+ import Maintenances from "./pages/Maintenances";
  
  const queryClient = new QueryClient();
  
@@ -65,6 +67,16 @@ import { AnnouncementModal } from "@/components/announcements/AnnouncementModal"
               <Route path="/announcements" element={
                 <AppLayout>
                   <Announcements />
+                </AppLayout>
+              } />
+              <Route path="/drivers" element={
+                <AppLayout>
+                  <Drivers />
+                </AppLayout>
+              } />
+              <Route path="/maintenances" element={
+                <AppLayout>
+                  <Maintenances />
                 </AppLayout>
               } />
                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

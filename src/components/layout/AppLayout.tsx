@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { AppSidebar } from './AppSidebar';
 import { StatusIndicator } from '@/components/StatusIndicator';
+ import { ReportsFloatingButton } from '@/components/reports/ReportsFloatingButton';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -16,6 +17,8 @@ export function AppLayout({ children }: AppLayoutProps) {
           <StatusIndicator />
         </div>
         {children}
+        {/* Floating Reports Button */}
+        <ReportsFloatingButton />
       </main>
     </div>
   );
