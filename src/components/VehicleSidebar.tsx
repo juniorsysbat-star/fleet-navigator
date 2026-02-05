@@ -183,7 +183,7 @@ export function VehicleSidebar({
           <span className="text-sm font-semibold text-foreground">{vehicles.length}</span>
           <span className="text-xs text-muted-foreground">veículos na frota</span>
         </div>
-@@
+
         {/* Search */}
         <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
