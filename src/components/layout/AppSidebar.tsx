@@ -11,9 +11,10 @@
    Plus,
    LogOut,
    Building2,
-  Megaphone,
-  UserCheck,
-  Wrench,
+   Megaphone,
+   UserCheck,
+   Wrench,
+   Power,
  } from 'lucide-react';
  import { cn } from '@/lib/utils';
  import { useState } from 'react';
@@ -23,6 +24,7 @@
  import { useAuth } from '@/contexts/AuthContext';
  import { DeviceModal, DeviceFormData } from '@/components/admin/DeviceModal';
  import { toast } from '@/hooks/use-toast';
+import { Separator } from '@/components/ui/separator';
  
  export function AppSidebar() {
    const [isCollapsed, setIsCollapsed] = useState(false);
@@ -67,7 +69,13 @@
    };
  
    const handleLogout = () => {
+    // Clear any localStorage data
+    localStorage.clear();
      logout();
+    toast({
+      title: '👋 Até logo!',
+      description: 'Você saiu com segurança.',
+    });
      navigate('/login');
    };
  
@@ -200,57 +208,63 @@
          </nav>
  
           {/* Footer - Logout & Collapse */}
-          <div className="p-3 border-t border-sidebar-border space-y-2">
-           {user && (
-             isCollapsed ? (
-               <Tooltip delayDuration={0}>
-                 <TooltipTrigger asChild>
-                   <button
-                     onClick={handleLogout}
-                     className="w-full flex items-center justify-center p-3 mb-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
-                   >
-                     <LogOut className="w-5 h-5" />
-                   </button>
-                 </TooltipTrigger>
-                 <TooltipContent side="right">
-                   <span className="font-semibold">Sair</span>
-                 </TooltipContent>
-               </Tooltip>
-             ) : (
-               <button
-                 onClick={handleLogout}
-                 className="w-full flex items-center gap-2 px-3 py-2 mb-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all text-sm font-medium"
-               >
-                 <LogOut className="w-4 h-4" />
-                 <span>Sair</span>
-               </button>
-             )
-           )}
- 
-           <button
-             onClick={() => setIsCollapsed(!isCollapsed)}
-             className={cn(
-               "w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
-               "text-muted-foreground hover:text-foreground hover:bg-secondary/50 border border-transparent hover:border-border",
-               isRTL && "flex-row-reverse"
-             )}
-           >
-             {isCollapsed ? (
-               <ChevronRight className={cn("w-4 h-4", isRTL && "rotate-180")} />
-             ) : (
-               <>
-                 <ChevronLeft className={cn("w-4 h-4", isRTL && "rotate-180")} />
-                 <span className="text-xs font-medium">{t('nav.collapse')}</span>
-               </>
-             )}
-           </button>
-
-            {!isCollapsed && (
-              <p className="text-[8px] text-muted-foreground/60 text-center leading-tight mt-2">
-                Desenvolvido por DATA OMEGA TECNOLOGIA MÓVEL LTDA.
-              </p>
+          <div className="mt-auto border-t border-sidebar-border">
+            {/* Logout Section - Always visible when logged in */}
+            {user && (
+              <div className="p-3 border-b border-sidebar-border/50">
+                {isCollapsed ? (
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center justify-center p-3 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive transition-all border border-destructive/20"
+                      >
+                        <Power className="w-5 h-5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="bg-destructive text-destructive-foreground">
+                      <span className="font-semibold">Sair do Sistema</span>
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all text-sm font-semibold border border-destructive/20"
+                  >
+                    <Power className="w-4 h-4" />
+                    <span>Sair do Sistema</span>
+                  </button>
+                )}
+              </div>
             )}
-         </div>
+
+            {/* Collapse Toggle */}
+            <div className="p-3 space-y-2">
+              <button
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className={cn(
+                  "w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
+                  "text-muted-foreground hover:text-foreground hover:bg-secondary/50 border border-transparent hover:border-border",
+                  isRTL && "flex-row-reverse"
+                )}
+              >
+                {isCollapsed ? (
+                  <ChevronRight className={cn("w-4 h-4", isRTL && "rotate-180")} />
+                ) : (
+                  <>
+                    <ChevronLeft className={cn("w-4 h-4", isRTL && "rotate-180")} />
+                    <span className="text-xs font-medium">{t('nav.collapse')}</span>
+                  </>
+                )}
+              </button>
+
+              {!isCollapsed && (
+                <p className="text-[8px] text-muted-foreground/60 text-center leading-tight mt-2">
+                  Desenvolvido por DATA OMEGA TECNOLOGIA MÓVEL LTDA.
+                </p>
+              )}
+            </div>
+          </div>
        </aside>
  
        <DeviceModal
