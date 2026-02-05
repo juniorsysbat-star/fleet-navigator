@@ -19,9 +19,13 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
+// Unified status logic - synchronized with VehicleCard
 const getVehicleMarkerStatus = (vehicle: VehicleWithStatus): 'moving' | 'idle' | 'offline' | 'unknown' => {
-  if (vehicle.speed > 5) return 'moving';
-  if (vehicle.ignition === true || vehicle.speed > 0) return 'idle';
+  // Green: Moving (Speed > 0)
+  if (vehicle.speed > 0) return 'moving';
+  // Yellow: Stopped but online (ignition on, speed = 0)
+  if (vehicle.ignition === true && vehicle.speed === 0) return 'idle';
+  // Gray: Offline (ignition off)
   if (vehicle.ignition === false) return 'offline';
   return 'unknown';
 };

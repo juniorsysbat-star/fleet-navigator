@@ -8,34 +8,44 @@ interface VehicleCardProps {
   onClick: () => void;
 }
 
+// Unified status logic - same as map markers
 const getDetailedStatus = (vehicle: VehicleWithStatus): { 
   status: VehicleStatus; 
   label: string; 
   colorClass: string;
   dotClass: string;
 } => {
-  if (vehicle.speed > 5) {
+  // Green: Online and Moving (Speed > 0)
+  if (vehicle.speed > 0) {
     return { 
       status: 'moving', 
       label: 'EM MOVIMENTO', 
       colorClass: 'text-success',
       dotClass: 'bg-success'
     };
-  } else if (vehicle.ignition === true || (vehicle.speed > 0 && vehicle.speed <= 5)) {
+  }
+  
+  // Yellow: Online and Stopped (Speed = 0, but ignition on)
+  if (vehicle.ignition === true && vehicle.speed === 0) {
     return { 
       status: 'idle', 
       label: 'PARADO LIGADO', 
       colorClass: 'text-warning',
       dotClass: 'bg-warning'
     };
-  } else if (vehicle.ignition === false) {
+  }
+  
+  // Gray: Offline (ignition off)
+  if (vehicle.ignition === false) {
     return { 
       status: 'offline', 
       label: 'OFFLINE', 
-      colorClass: 'text-destructive',
-      dotClass: 'bg-destructive'
+      colorClass: 'text-muted-foreground',
+      dotClass: 'bg-muted-foreground'
     };
   }
+  
+  // Unknown
   return { 
     status: 'unknown', 
     label: 'DESCONHECIDO', 
@@ -78,7 +88,7 @@ export function VehicleCard({ vehicle, isSelected, onClick }: VehicleCardProps) 
               "border-2 transition-all duration-300",
               statusInfo.status === 'moving' && "border-success bg-success/10",
               statusInfo.status === 'idle' && "border-warning bg-warning/10",
-              statusInfo.status === 'offline' && "border-destructive bg-destructive/10",
+              statusInfo.status === 'offline' && "border-muted-foreground bg-muted/10",
               statusInfo.status === 'unknown' && "border-muted-foreground bg-muted/10"
             )}
             style={{
@@ -86,8 +96,6 @@ export function VehicleCard({ vehicle, isSelected, onClick }: VehicleCardProps) 
                 ? '0 0 15px hsl(var(--neon-green) / 0.4)'
                 : statusInfo.status === 'idle'
                 ? '0 0 15px hsl(var(--neon-yellow) / 0.4)'
-                : statusInfo.status === 'offline'
-                ? '0 0 15px hsl(var(--neon-red) / 0.4)'
                 : 'none',
             }}
           >
@@ -96,7 +104,7 @@ export function VehicleCard({ vehicle, isSelected, onClick }: VehicleCardProps) 
                 "w-5 h-5",
                 statusInfo.status === 'moving' && "text-success",
                 statusInfo.status === 'idle' && "text-warning",
-                statusInfo.status === 'offline' && "text-destructive",
+                statusInfo.status === 'offline' && "text-muted-foreground",
                 statusInfo.status === 'unknown' && "text-muted-foreground"
               )}
             />

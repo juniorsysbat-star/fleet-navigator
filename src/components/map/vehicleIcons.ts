@@ -13,11 +13,11 @@
  
  // Status color definitions
  const STATUS_COLORS = {
-   moving: { main: '#00ff88', glow: 'rgba(0, 255, 136, 0.5)' },
-   idle: { main: '#ffcc00', glow: 'rgba(255, 204, 0, 0.5)' },
-   offline: { main: '#ff4444', glow: 'rgba(255, 68, 68, 0.5)' },
+  moving: { main: '#00ff88', glow: 'rgba(0, 255, 136, 0.5)' },   // Green: Moving
+  idle: { main: '#ffcc00', glow: 'rgba(255, 204, 0, 0.5)' },     // Yellow: Stopped
+  offline: { main: '#666666', glow: 'rgba(102, 102, 102, 0.5)' }, // Gray: Offline
    unknown: { main: '#666666', glow: 'rgba(102, 102, 102, 0.5)' },
-   speeding: { main: '#ff0000', glow: 'rgba(255, 0, 0, 0.8)' },
+  speeding: { main: '#ff0000', glow: 'rgba(255, 0, 0, 0.8)' },   // Red: Alarm/Block
  };
  
  // Create custom marker icon with vehicle type and optional custom color

@@ -43,9 +43,10 @@ export function VehicleSidebar({
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'moving' | 'idle' | 'offline'>('all');
 
-  // Calculate counts by status
-  const idleCount = vehicles.filter(v => !v.isMoving && (v.ignition === true || v.speed > 0)).length;
-  const offlineCount = vehicles.filter(v => !v.isMoving && v.ignition === false).length;
+  // Calculate counts by status - synchronized with VehicleCard logic
+  const movingCountCalc = vehicles.filter(v => v.speed > 0).length;
+  const idleCount = vehicles.filter(v => v.ignition === true && v.speed === 0).length;
+  const offlineCount = vehicles.filter(v => v.ignition === false).length;
 
   const filteredVehicles = vehicles.filter((vehicle) => {
     const matchesSearch = 
@@ -55,8 +56,8 @@ export function VehicleSidebar({
     if (!matchesSearch) return false;
     
     if (filter === 'all') return true;
-    if (filter === 'moving') return vehicle.speed > 5;
-    if (filter === 'idle') return vehicle.speed <= 5 && (vehicle.ignition === true || vehicle.speed > 0);
+    if (filter === 'moving') return vehicle.speed > 0;
+    if (filter === 'idle') return vehicle.ignition === true && vehicle.speed === 0;
     if (filter === 'offline') return vehicle.ignition === false && vehicle.speed === 0;
     
     return true;
@@ -130,7 +131,7 @@ export function VehicleSidebar({
             <div className="flex items-center justify-center mb-1">
               <Activity className="w-3.5 h-3.5 text-success" />
             </div>
-            <p className="text-base font-display font-bold text-success">{movingCount}</p>
+            <p className="text-base font-display font-bold text-success">{movingCountCalc}</p>
             <p className="text-[8px] text-success/70 uppercase">Ativos</p>
           </div>
           
@@ -167,7 +168,7 @@ export function VehicleSidebar({
         <div className="flex gap-1 p-1 bg-secondary/30 rounded-lg">
           {[
             { key: 'all', label: 'Todos', count: vehicles.length },
-            { key: 'moving', label: 'Ativos', count: movingCount },
+          { key: 'moving', label: 'Ativos', count: movingCountCalc },
             { key: 'idle', label: 'Parados', count: idleCount },
             { key: 'offline', label: 'Offline', count: offlineCount },
           ].map((tab) => (
