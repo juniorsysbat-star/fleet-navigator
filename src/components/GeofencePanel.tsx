@@ -2,12 +2,12 @@ import { Geofence } from '@/data/mockGeofences';
 import { 
   MapPin, 
   Trash2, 
-  Edit2, 
   Power, 
   Bell, 
   BellOff,
-  ChevronRight,
-  Plus
+  Plus,
+  X,
+  Minus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,8 @@ interface GeofencePanelProps {
   onToggleGeofence: (id: string) => void;
   selectedGeofenceId: string | null;
   onSelectGeofence: (id: string | null) => void;
+  onClose?: () => void;
+  onMinimize?: () => void;
 }
 
 export function GeofencePanel({
@@ -34,9 +36,11 @@ export function GeofencePanel({
   onToggleGeofence,
   selectedGeofenceId,
   onSelectGeofence,
+  onClose,
+  onMinimize,
 }: GeofencePanelProps) {
   return (
-    <div className="absolute top-4 right-4 z-[1000] w-80 max-h-[calc(100vh-120px)] flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden">
+    <div className="absolute top-4 right-4 z-[1000] w-80 max-h-[calc(100vh-120px)] flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-right duration-300">
       {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between mb-3">
@@ -44,9 +48,29 @@ export function GeofencePanel({
             <MapPin className="w-5 h-5 text-accent" />
             <h3 className="font-display font-bold text-foreground">Cercas Virtuais</h3>
           </div>
-          <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded">
-            {geofences.length} cercas
-          </span>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded mr-1">
+              {geofences.length}
+            </span>
+            {onMinimize && (
+              <button
+                onClick={onMinimize}
+                className="p-1.5 rounded-md hover:bg-secondary/80 transition-colors text-muted-foreground hover:text-foreground"
+                title="Minimizar"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+            )}
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-md hover:bg-destructive/20 transition-colors text-muted-foreground hover:text-destructive"
+                title="Fechar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         {isDrawing ? (

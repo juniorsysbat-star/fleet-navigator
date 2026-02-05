@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useVehicles } from '@/hooks/useVehicles';
 import { VehicleMap } from '@/components/VehicleMap';
 import { VehicleSidebar } from '@/components/VehicleSidebar';
@@ -6,38 +6,97 @@ import { VehicleDetailPanel } from '@/components/VehicleDetailPanel';
 import { GeofencePanel } from '@/components/GeofencePanel';
 import { MissionPlannerModal } from '@/components/MissionPlannerModal';
 import { MissionTracker } from '@/components/MissionTracker';
+import { PanelDock, PanelType } from '@/components/PanelDock';
 import { AlertCircle, Database } from 'lucide-react';
 import { generateMockTrail, MOCK_TRAILS } from '@/data/mockVehicles';
 import { MOCK_GEOFENCES, Geofence } from '@/data/mockGeofences';
 import { Mission } from '@/types/mission';
 
+type PanelState = 'open' | 'minimized' | 'closed';
+
+interface PanelStates {
+  vehicleList: PanelState;
+  vehicleDetail: PanelState;
+  geofence: PanelState;
+  mission: PanelState;
+}
+
 const Dashboard = () => {
+  // Vehicle selection state
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
   const [showTrail, setShowTrail] = useState(false);
   const [trailData, setTrailData] = useState<{ lat: number; lng: number }[] | null>(null);
+  
+  // Geofence state
   const [geofences, setGeofences] = useState<Geofence[]>(MOCK_GEOFENCES);
   const [isDrawingGeofence, setIsDrawingGeofence] = useState(false);
   const [selectedGeofenceId, setSelectedGeofenceId] = useState<string | null>(null);
+  
+  // Mission state
   const [isMissionPlannerOpen, setIsMissionPlannerOpen] = useState(false);
   const [activeMission, setActiveMission] = useState<Mission | null>(null);
+  
+  // Panel visibility state
+  const [panelStates, setPanelStates] = useState<PanelStates>({
+    vehicleList: 'open',
+    vehicleDetail: 'closed',
+    geofence: 'open',
+    mission: 'closed',
+  });
   
   const { vehicles, isLoading, error, lastUpdate, movingCount, stoppedCount, isUsingMockData, refetch } = useVehicles();
   
   const selectedVehicle = vehicles.find(v => v.device_id === selectedVehicleId) || null;
 
-  const handleVehicleSelect = (id: string) => {
-    if (id === selectedVehicleId) {
-      return;
+  // Panel management functions
+  const setPanelState = useCallback((panel: PanelType, state: PanelState) => {
+    setPanelStates(prev => ({ ...prev, [panel]: state }));
+  }, []);
+
+  const minimizePanel = useCallback((panel: PanelType) => {
+    setPanelState(panel, 'minimized');
+  }, [setPanelState]);
+
+  const closePanel = useCallback((panel: PanelType) => {
+    setPanelState(panel, 'closed');
+    
+    // Clear associated data when closing certain panels
+    if (panel === 'vehicleDetail') {
+      setSelectedVehicleId(null);
+      setShowTrail(false);
+      setTrailData(null);
     }
+    if (panel === 'mission') {
+      setActiveMission(null);
+    }
+  }, [setPanelState]);
+
+  const restorePanel = useCallback((panel: PanelType) => {
+    setPanelState(panel, 'open');
+  }, [setPanelState]);
+
+  const getMinimizedPanels = (): PanelType[] => {
+    return (Object.keys(panelStates) as PanelType[]).filter(
+      panel => panelStates[panel] === 'minimized'
+    );
+  };
+
+  // Vehicle handlers
+  const handleVehicleSelect = (id: string) => {
+    if (id === selectedVehicleId) return;
+    
     setSelectedVehicleId(id);
     setShowTrail(false);
     setTrailData(null);
+    setPanelState('vehicleDetail', 'open');
   };
 
-  const handleClosePanel = () => {
-    setSelectedVehicleId(null);
-    setShowTrail(false);
-    setTrailData(null);
+  const handleCloseVehicleDetail = () => {
+    closePanel('vehicleDetail');
+  };
+
+  const handleMinimizeVehicleDetail = () => {
+    minimizePanel('vehicleDetail');
   };
 
   const handleShowTrail = (vehicleId: string) => {
@@ -54,9 +113,11 @@ const Dashboard = () => {
     }
   };
 
+  // Geofence handlers
   const handleStartDrawing = () => {
     setIsDrawingGeofence(true);
     setSelectedVehicleId(null);
+    setPanelState('vehicleDetail', 'closed');
   };
 
   const handleCancelDrawing = () => {
@@ -92,9 +153,12 @@ const Dashboard = () => {
     ));
   };
 
+  // Mission handlers
   const handleMissionCreated = (mission: Mission) => {
     setActiveMission(mission);
     setSelectedVehicleId(mission.vehicleId);
+    setPanelState('mission', 'open');
+    setPanelState('vehicleDetail', 'open');
     console.log('🚀 Nova missão criada:', mission.name);
   };
 
@@ -102,7 +166,16 @@ const Dashboard = () => {
     if (activeMission) {
       console.log('❌ Missão cancelada:', activeMission.name);
       setActiveMission(null);
+      setPanelState('mission', 'closed');
     }
+  };
+
+  const handleCloseMission = () => {
+    closePanel('mission');
+  };
+
+  const handleMinimizeMission = () => {
+    minimizePanel('mission');
   };
 
   const missionVehicle = activeMission 
@@ -111,17 +184,21 @@ const Dashboard = () => {
 
   return (
     <div className="h-full w-full flex overflow-hidden bg-background">
-      {/* Sidebar */}
-      <VehicleSidebar
-        vehicles={vehicles}
-        selectedVehicleId={selectedVehicleId}
-        onVehicleSelect={handleVehicleSelect}
-        isLoading={isLoading}
-        lastUpdate={lastUpdate}
-        movingCount={movingCount}
-        stoppedCount={stoppedCount}
-        onRefresh={refetch}
-      />
+      {/* Sidebar - Vehicle List */}
+      {panelStates.vehicleList === 'open' && (
+        <VehicleSidebar
+          vehicles={vehicles}
+          selectedVehicleId={selectedVehicleId}
+          onVehicleSelect={handleVehicleSelect}
+          isLoading={isLoading}
+          lastUpdate={lastUpdate}
+          movingCount={movingCount}
+          stoppedCount={stoppedCount}
+          onRefresh={refetch}
+          onMinimize={() => minimizePanel('vehicleList')}
+          onClose={() => closePanel('vehicleList')}
+        />
+      )}
 
       {/* Map Container */}
       <div className="flex-1 relative">
@@ -168,26 +245,39 @@ const Dashboard = () => {
         />
 
         {/* Geofence Panel */}
-        <GeofencePanel
-          geofences={geofences}
-          isDrawing={isDrawingGeofence}
-          onStartDrawing={handleStartDrawing}
-          onCancelDrawing={handleCancelDrawing}
-          onDeleteGeofence={handleDeleteGeofence}
-          onToggleGeofence={handleToggleGeofence}
-          selectedGeofenceId={selectedGeofenceId}
-          onSelectGeofence={setSelectedGeofenceId}
-        />
+        {panelStates.geofence === 'open' && (
+          <GeofencePanel
+            geofences={geofences}
+            isDrawing={isDrawingGeofence}
+            onStartDrawing={handleStartDrawing}
+            onCancelDrawing={handleCancelDrawing}
+            onDeleteGeofence={handleDeleteGeofence}
+            onToggleGeofence={handleToggleGeofence}
+            selectedGeofenceId={selectedGeofenceId}
+            onSelectGeofence={setSelectedGeofenceId}
+            onMinimize={() => minimizePanel('geofence')}
+            onClose={() => closePanel('geofence')}
+          />
+        )}
 
         {/* Mission Tracker */}
-        {activeMission && (
+        {activeMission && panelStates.mission === 'open' && (
           <MissionTracker
             mission={activeMission}
             vehicle={missionVehicle}
-            onClose={() => setActiveMission(null)}
+            onClose={handleCloseMission}
             onCancelMission={handleCancelMission}
+            onMinimize={handleMinimizeMission}
           />
         )}
+
+        {/* Panel Dock - Shows minimized panels */}
+        <PanelDock
+          minimizedPanels={getMinimizedPanels()}
+          onRestorePanel={restorePanel}
+          vehicleDetailHasData={selectedVehicle !== null}
+          missionHasData={activeMission !== null}
+        />
 
         {/* Status Bar */}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] px-4 py-2 bg-card/90 backdrop-blur-sm border border-border rounded-full flex items-center gap-4 text-xs font-medium">
@@ -215,13 +305,14 @@ const Dashboard = () => {
       </div>
 
       {/* Detail Panel */}
-      {selectedVehicle && !isDrawingGeofence && (
+      {selectedVehicle && !isDrawingGeofence && panelStates.vehicleDetail === 'open' && (
         <VehicleDetailPanel
           vehicle={selectedVehicle}
-          onClose={handleClosePanel}
+          onClose={handleCloseVehicleDetail}
           onShowTrail={handleShowTrail}
           isTrailVisible={showTrail}
           onOpenMissionPlanner={() => setIsMissionPlannerOpen(true)}
+          onMinimize={handleMinimizeVehicleDetail}
         />
       )}
 
