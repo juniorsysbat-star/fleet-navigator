@@ -15,6 +15,8 @@
  import NotFound from "./pages/NotFound";
  import Login from "./pages/Login";
  import ResellerBilling from "./pages/ResellerBilling";
+import Announcements from "./pages/Announcements";
+import { AnnouncementModal } from "@/components/announcements/AnnouncementModal";
  
  const queryClient = new QueryClient();
  
@@ -26,6 +28,7 @@
            <TooltipProvider>
              <Toaster />
              <Sonner />
+            <AnnouncementModal />
              <BrowserRouter>
                <Routes>
                  <Route path="/login" element={<Login />} />
@@ -59,6 +62,11 @@
                      <ResellerBilling />
                    </AppLayout>
                  } />
+              <Route path="/announcements" element={
+                <AppLayout>
+                  <Announcements />
+                </AppLayout>
+              } />
                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                  <Route path="*" element={<NotFound />} />
                </Routes>

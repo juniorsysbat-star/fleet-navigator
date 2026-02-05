@@ -161,9 +161,9 @@
                    <p className="text-xs text-gray-500">ID: {Date.now().toString(36).toUpperCase()}</p>
                  </div>
                </div>
-               <div className="mt-4 p-3 bg-gray-100 rounded text-xs text-gray-500 text-center">
-                 Este documento é confidencial e destinado exclusivamente ao uso interno da organização.
-                 Reprodução ou distribuição não autorizada é proibida.
+                <div className="mt-4 p-3 bg-gray-100 rounded text-xs text-gray-500 text-center space-y-1">
+                  <p>Este documento é confidencial e destinado exclusivamente ao uso interno da organização.</p>
+                  <p className="font-semibold text-gray-600">Desenvolvido por DATA OMEGA TECNOLOGIA MÓVEL LTDA.</p>
                </div>
              </div>
            </div>

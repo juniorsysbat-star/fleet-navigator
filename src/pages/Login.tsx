@@ -152,8 +152,8 @@
            </div>
          </form>
  
-         <p className="text-center text-xs text-muted-foreground mt-6">
-           © 2024 FleetAI Pro Platform. Todos os direitos reservados.
+        <p className="text-center text-xs text-muted-foreground mt-6 leading-relaxed">
+          Desenvolvido por <span className="font-semibold">DATA OMEGA TECNOLOGIA MÓVEL LTDA.</span>
          </p>
        </div>
      </div>

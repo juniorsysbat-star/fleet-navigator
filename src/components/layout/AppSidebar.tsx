@@ -11,6 +11,7 @@
    Plus,
    LogOut,
    Building2,
+  Megaphone,
  } from 'lucide-react';
  import { cn } from '@/lib/utils';
  import { useState } from 'react';
@@ -38,10 +39,18 @@
      { path: '/settings', icon: Settings, label: settings.moduleNames.settings || t('nav.settings') },
    ];
  
-   // Menu exclusivo para Super Admin
-   const adminOnlyItems = user?.role === 'super_admin' ? [
-     { path: '/reseller-billing', icon: Building2, label: 'Financeiro Revenda' },
-   ] : [];
+  // Menus exclusivos por role
+  const adminOnlyItems = [];
+  
+  // Comunicados - visível para admin, manager e embarcador
+  if (user?.role === 'super_admin' || user?.role === 'manager' || user?.role === 'embarcador') {
+    adminOnlyItems.push({ path: '/announcements', icon: Megaphone, label: 'Comunicados' });
+  }
+  
+  // Financeiro Revenda - apenas super admin
+  if (user?.role === 'super_admin') {
+    adminOnlyItems.push({ path: '/reseller-billing', icon: Building2, label: 'Financeiro Revenda' });
+  }
  
    const allNavItems = [...navItems, ...adminOnlyItems];
  
@@ -186,16 +195,8 @@
            })}
          </nav>
  
-         {/* Footer */}
-         <div className="p-3 border-t border-sidebar-border">
-           {isDemoMode && !isCollapsed && (
-             <div className="mb-2 px-3 py-2 rounded-lg bg-accent/10 border border-accent/30">
-               <p className="text-[10px] font-bold text-accent uppercase tracking-wide text-center">
-                 Modo Demonstração
-               </p>
-             </div>
-           )}
- 
+          {/* Footer - Logout & Collapse */}
+          <div className="p-3 border-t border-sidebar-border space-y-2">
            {user && (
              isCollapsed ? (
                <Tooltip delayDuration={0}>
@@ -239,6 +240,12 @@
                </>
              )}
            </button>
+
+            {!isCollapsed && (
+              <p className="text-[8px] text-muted-foreground/60 text-center leading-tight mt-2">
+                Desenvolvido por DATA OMEGA TECNOLOGIA MÓVEL LTDA.
+              </p>
+            )}
          </div>
        </aside>
  
