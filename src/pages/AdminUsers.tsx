@@ -11,7 +11,8 @@ import {
   Clock,
   Trash2,
   Edit,
-  Link
+  Link,
+  AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { CreateUserModal } from '@/components/admin/CreateUserModal';
+import { EditUserModal } from '@/components/admin/EditUserModal';
 import { VehicleAssociationModal } from '@/components/admin/VehicleAssociationModal';
 import { User, UserRole } from '@/types/user';
 import { 
@@ -42,6 +44,7 @@ const AdminUsers = () => {
   const [associations, setAssociations] = useState(MOCK_USER_DEVICE_ASSOCIATIONS);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [selectedUserForVehicles, setSelectedUserForVehicles] = useState<User | null>(null);
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
 
@@ -96,6 +99,13 @@ const AdminUsers = () => {
     });
   };
 
+  const handleEditUser = (updatedUser: User) => {
+    setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+    toast.success('Cliente atualizado!', {
+      description: `Os dados de ${updatedUser.name} foram salvos.`,
+    });
+  };
+
   const handleDeleteUser = (userId: string) => {
     const user = users.find(u => u.id === userId);
     setUsers(users.filter(u => u.id !== userId));
@@ -131,6 +141,16 @@ const AdminUsers = () => {
       hour: '2-digit',
       minute: '2-digit',
     }).format(date);
+  };
+
+  const formatExpirationDate = (date?: Date) => {
+    if (!date) return null;
+    const now = new Date();
+    const isExpired = date < now;
+    return {
+      text: formatDate(date),
+      isExpired,
+    };
   };
 
   const stats = {
@@ -261,6 +281,16 @@ const AdminUsers = () => {
                         Último acesso: {formatDateTime(user.lastLogin)}
                       </span>
                     )}
+                    {user.expirationDate && (
+                      <span className={`flex items-center gap-1 ${
+                        formatExpirationDate(user.expirationDate)?.isExpired 
+                          ? 'text-destructive' 
+                          : 'text-warning'
+                      }`}>
+                        <AlertCircle className="w-3 h-3" />
+                        Vence: {formatExpirationDate(user.expirationDate)?.text}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -292,7 +322,7 @@ const AdminUsers = () => {
                       <Car className="w-4 h-4 mr-2" />
                       Associar Veículos
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setEditingUser(user)}>
                       <Edit className="w-4 h-4 mr-2" />
                       Editar Cliente
                     </DropdownMenuItem>
@@ -330,6 +360,13 @@ const AdminUsers = () => {
         vehicles={vehicles}
         currentAssociations={selectedUserForVehicles ? getUserAssociations(selectedUserForVehicles.id) : []}
         onSave={handleSaveVehicleAssociations}
+      />
+
+      <EditUserModal
+        isOpen={editingUser !== null}
+        onClose={() => setEditingUser(null)}
+        user={editingUser}
+        onUserUpdated={handleEditUser}
       />
     </div>
   );
