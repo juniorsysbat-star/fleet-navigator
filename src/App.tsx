@@ -19,6 +19,7 @@ import Announcements from "./pages/Announcements";
 import { AnnouncementModal } from "@/components/announcements/AnnouncementModal";
  import Drivers from "./pages/Drivers";
  import Maintenances from "./pages/Maintenances";
+import MobilePhotoCapture from "./pages/MobilePhotoCapture";
  
  const queryClient = new QueryClient();
  
@@ -79,6 +80,7 @@ import { AnnouncementModal } from "@/components/announcements/AnnouncementModal"
                   <Maintenances />
                 </AppLayout>
               } />
+               <Route path="/mobile-photo/:sessionId" element={<MobilePhotoCapture />} />
                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                  <Route path="*" element={<NotFound />} />
                </Routes>
