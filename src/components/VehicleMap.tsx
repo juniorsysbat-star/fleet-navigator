@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
-import { VehicleWithStatus } from '@/types/vehicle';
+import { VehicleWithStatus, VehicleType } from '@/types/vehicle';
 import { Geofence } from '@/data/mockGeofences';
 import { Mission } from '@/types/mission';
 import { Button } from '@/components/ui/button';
 import { TrafficCone, Layers } from 'lucide-react';
 import { getCurrentRoadSpeedLimit } from '@/services/routingService';
+import { createVehicleIcon } from './map/vehicleIcons';
 import 'leaflet/dist/leaflet.css';
 
 // Fix default marker icons
@@ -15,93 +16,6 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
-
-// Custom marker icons with status colors - now includes speeding state
-const createCustomIcon = (status: 'moving' | 'idle' | 'offline' | 'unknown' | 'speeding') => {
-  const colors = {
-    moving: { main: '#00ff88', glow: 'rgba(0, 255, 136, 0.5)' },
-    idle: { main: '#ffcc00', glow: 'rgba(255, 204, 0, 0.5)' },
-    offline: { main: '#ff4444', glow: 'rgba(255, 68, 68, 0.5)' },
-    unknown: { main: '#666666', glow: 'rgba(102, 102, 102, 0.5)' },
-    speeding: { main: '#ff0000', glow: 'rgba(255, 0, 0, 0.8)' },
-  };
-  
-  const { main: color, glow: glowColor } = colors[status];
-  const isSpeeding = status === 'speeding';
-  
-  return L.divIcon({
-    className: 'custom-marker',
-    html: `
-      <div style="
-        position: relative;
-        width: 40px;
-        height: 40px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      ">
-        <div style="
-          position: absolute;
-          width: 40px;
-          height: 40px;
-          background: ${glowColor};
-          border-radius: 50%;
-          animation: ${isSpeeding ? 'pulse-fast' : 'pulse'} ${isSpeeding ? '0.5s' : '2s'} infinite;
-        "></div>
-        <div style="
-          position: relative;
-          width: 32px;
-          height: 32px;
-          background: linear-gradient(135deg, ${isSpeeding ? 'hsl(0 60% 15%)' : 'hsl(220 25% 15%)'} 0%, ${isSpeeding ? 'hsl(0 70% 10%)' : 'hsl(220 30% 10%)'} 100%);
-          border: 2px solid ${color};
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 0 ${isSpeeding ? '25px' : '15px'} ${glowColor};
-        ">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2">
-            <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/>
-            <circle cx="7" cy="17" r="2"/>
-            <circle cx="17" cy="17" r="2"/>
-          </svg>
-        </div>
-        ${isSpeeding ? `
-          <div style="
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            width: 20px;
-            height: 20px;
-            background: #ff0000;
-            border: 2px solid white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-            font-weight: bold;
-            color: white;
-            animation: pulse-fast 0.5s infinite;
-          ">!</div>
-        ` : ''}
-      </div>
-      <style>
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 0.5; }
-          50% { transform: scale(1.5); opacity: 0; }
-        }
-        @keyframes pulse-fast {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.2); opacity: 0.6; }
-        }
-      </style>
-    `,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20],
-    popupAnchor: [0, -20],
-  });
-};
 
 const getVehicleMarkerStatus = (vehicle: VehicleWithStatus): 'moving' | 'idle' | 'offline' | 'unknown' => {
   if (vehicle.speed > 5) return 'moving';
@@ -443,12 +357,20 @@ export function VehicleMap({
       if (existingMarker) {
         // Animate to new position instead of teleporting
         animateMarkerTo(existingMarker, vehicle.latitude, vehicle.longitude, 800);
-        existingMarker.setIcon(createCustomIcon(markerStatus));
+        existingMarker.setIcon(createVehicleIcon(
+          markerStatus, 
+          vehicle.vehicleType || 'sedan',
+          vehicle.iconColor
+        ));
         existingMarker.getPopup()?.setContent(createPopupContent(vehicle));
       } else {
         // Create new marker
         const marker = L.marker([vehicle.latitude, vehicle.longitude], {
-          icon: createCustomIcon(markerStatus),
+          icon: createVehicleIcon(
+            markerStatus,
+            vehicle.vehicleType || 'sedan',
+            vehicle.iconColor
+          ),
         });
 
         marker.bindPopup(createPopupContent(vehicle), {
