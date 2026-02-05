@@ -181,12 +181,12 @@ export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModal
   const SelectedVehicleIcon = VEHICLE_TYPES.find(v => v.type === vehicleType)?.icon || Car;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       
-      <div className="relative w-full max-w-lg mx-4 bg-card/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto scrollbar-cyber">
+      <div className="relative z-[9999] w-full max-w-lg mx-4 bg-card border border-border rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto scrollbar-cyber">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-card/95 backdrop-blur-xl z-10">
+        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-card z-10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-accent/20 to-primary/20 flex items-center justify-center border border-accent/30">
               <Cpu className="w-5 h-5 text-accent" />
