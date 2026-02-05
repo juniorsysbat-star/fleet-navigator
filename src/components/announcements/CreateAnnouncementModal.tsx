@@ -7,8 +7,7 @@
  import { Label } from '@/components/ui/label';
  import { Send, Wrench, AlertTriangle, Gift } from 'lucide-react';
  import { AnnouncementType, RecipientType, recipientTypeLabels } from '@/types/announcement';
- import { mockAnnouncements } from '@/data/mockAnnouncements';
- import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
  import { toast } from 'sonner';
  import { cn } from '@/lib/utils';
  
@@ -50,9 +49,9 @@
        createdBy: user?.name || 'Sistema',
        readBy: [],
      };
- 
-     mockAnnouncements.unshift(newAnnouncement);
- 
+
+      // Comunicado será salvo quando a API for implementada
+      console.log('Novo comunicado:', newAnnouncement);
      await new Promise((resolve) => setTimeout(resolve, 500));
  
      toast.success('Comunicado enviado com sucesso!', {

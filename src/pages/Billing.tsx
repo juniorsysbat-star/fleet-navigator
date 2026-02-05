@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { 
   CreditCard, 
   DollarSign, 
@@ -13,51 +14,71 @@ import {
   XCircle,
   QrCode,
   Search,
-  Filter,
-  ChevronRight,
-  Plus
+  Plus,
+  Database
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { MOCK_CLIENTS, BILLING_SUMMARY, Client } from '@/data/mockBilling';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
- import { ReportPdfExport } from '@/components/reports/ReportPdfExport';
+import { ReportPdfExport } from '@/components/reports/ReportPdfExport';
+
+// Tipos para clientes (serão preenchidos pela API)
+interface Client {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  plan: 'basic' | 'pro' | 'enterprise';
+  vehicleCount: number;
+  monthlyValue: number;
+  status: 'active' | 'overdue';
+  overdueAmount?: number;
+  lastPayment: Date;
+  dueDate: Date;
+}
+
+interface BillingSummary {
+  totalRevenue: number;
+  projectedRevenue: number;
+  totalClients: number;
+  newClientsThisMonth: number;
+  delinquencyRate: number;
+  overdueAmount: number;
+  overdueClients: number;
+}
 
 const Billing = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'overdue'>('all');
 
-   // Dados para o relatório PDF
-   const reportData = {
-     title: 'Relatório Financeiro',
-     period: `${new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`,
-     summary: [
-       { label: 'Faturamento Mensal', value: `R$ ${BILLING_SUMMARY.totalRevenue.toLocaleString()}` },
-       { label: 'Projeção Próximo Mês', value: `R$ ${BILLING_SUMMARY.projectedRevenue.toLocaleString()}` },
-       { label: 'Total de Clientes', value: BILLING_SUMMARY.totalClients },
-       { label: 'Novos Clientes (Mês)', value: BILLING_SUMMARY.newClientsThisMonth },
-       { label: 'Taxa de Inadimplência', value: `${BILLING_SUMMARY.delinquencyRate.toFixed(1)}%` },
-       { label: 'Valor em Atraso', value: `R$ ${BILLING_SUMMARY.overdueAmount.toLocaleString()}` },
-     ],
-     tables: [
-       {
-         title: 'Lista de Clientes',
-         headers: ['Cliente', 'Plano', 'Veículos', 'Valor Mensal', 'Status', 'Último Pagamento'],
-         rows: MOCK_CLIENTS.map((client) => [
-           client.name,
-           client.plan.toUpperCase(),
-           client.vehicleCount,
-           `R$ ${client.monthlyValue.toFixed(2)}`,
-           client.status === 'active' ? 'Em dia' : 'Atrasado',
-           client.lastPayment.toLocaleDateString('pt-BR'),
-         ]),
-       },
-     ],
-   };
- 
-  const filteredClients = MOCK_CLIENTS.filter((client) => {
+  // Estados vazios - serão preenchidos pela API
+  const clients: Client[] = [];
+  const summary: BillingSummary = {
+    totalRevenue: 0,
+    projectedRevenue: 0,
+    totalClients: 0,
+    newClientsThisMonth: 0,
+    delinquencyRate: 0,
+    overdueAmount: 0,
+    overdueClients: 0,
+  };
+
+  const reportData = {
+    title: 'Relatório Financeiro',
+    period: `${new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`,
+    summary: [
+      { label: 'Faturamento Mensal', value: `R$ ${summary.totalRevenue.toLocaleString()}` },
+      { label: 'Projeção Próximo Mês', value: `R$ ${summary.projectedRevenue.toLocaleString()}` },
+      { label: 'Total de Clientes', value: summary.totalClients },
+      { label: 'Novos Clientes (Mês)', value: summary.newClientsThisMonth },
+      { label: 'Taxa de Inadimplência', value: `${summary.delinquencyRate.toFixed(1)}%` },
+      { label: 'Valor em Atraso', value: `R$ ${summary.overdueAmount.toLocaleString()}` },
+    ],
+    tables: [],
+  };
+
+  const filteredClients = clients.filter((client) => {
     const matchesSearch = 
       client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       client.email.toLowerCase().includes(searchQuery.toLowerCase());
@@ -79,10 +100,17 @@ const Billing = () => {
 
   const handleGenerateBoleto = (client: Client) => {
     console.log(`📄 Gerando boleto PIX para: ${client.name}`);
-    console.log(`💰 Valor: R$ ${client.monthlyValue.toFixed(2)}`);
-    console.log(`📧 Email: ${client.email}`);
-    console.log('⚠️ Esta é uma ação simulada - nenhum boleto foi realmente gerado.');
   };
+
+  const EmptyState = () => (
+    <div className="p-12 text-center">
+      <Database className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+      <h3 className="font-display text-lg font-semibold text-foreground mb-2">Sem dados financeiros</h3>
+      <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+        Os dados de clientes e cobranças aparecerão aqui quando disponíveis.
+      </p>
+    </div>
+  );
 
   return (
     <div className="h-full overflow-y-auto bg-background p-6 scrollbar-cyber">
@@ -103,12 +131,13 @@ const Billing = () => {
             </div>
           </div>
           
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" />
-            Novo Cliente
-          </Button>
-           
-           <ReportPdfExport reportData={reportData} type="billing" />
+          <div className="flex gap-2">
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
+              Novo Cliente
+            </Button>
+            <ReportPdfExport reportData={reportData} type="billing" />
+          </div>
         </div>
       </div>
 
@@ -117,10 +146,10 @@ const Billing = () => {
         <div className="p-5 rounded-xl bg-gradient-to-br from-success/10 to-card border border-success/30">
           <div className="flex items-center justify-between mb-3">
             <DollarSign className="w-8 h-8 text-success" />
-            <span className="text-xs text-success bg-success/20 px-2 py-1 rounded">+12%</span>
+            <span className="text-xs text-success bg-success/20 px-2 py-1 rounded">+0%</span>
           </div>
           <p className="text-3xl font-display font-bold text-success">
-            R$ {BILLING_SUMMARY.totalRevenue.toLocaleString()}
+            R$ {summary.totalRevenue.toLocaleString()}
           </p>
           <p className="text-xs text-muted-foreground mt-1">Faturamento Mensal</p>
         </div>
@@ -128,10 +157,9 @@ const Billing = () => {
         <div className="p-5 rounded-xl bg-gradient-to-br from-destructive/10 to-card border border-destructive/30">
           <div className="flex items-center justify-between mb-3">
             <AlertTriangle className="w-8 h-8 text-destructive" />
-            <span className="text-xs text-destructive bg-destructive/20 px-2 py-1 rounded">Atenção</span>
           </div>
           <p className="text-3xl font-display font-bold text-destructive">
-            {BILLING_SUMMARY.delinquencyRate.toFixed(1)}%
+            {summary.delinquencyRate.toFixed(1)}%
           </p>
           <p className="text-xs text-muted-foreground mt-1">Taxa de Inadimplência</p>
         </div>
@@ -140,11 +168,11 @@ const Billing = () => {
           <div className="flex items-center justify-between mb-3">
             <Users className="w-8 h-8 text-accent" />
             <span className="text-xs text-accent bg-accent/20 px-2 py-1 rounded">
-              +{BILLING_SUMMARY.newClientsThisMonth}
+              +{summary.newClientsThisMonth}
             </span>
           </div>
           <p className="text-3xl font-display font-bold text-foreground">
-            {BILLING_SUMMARY.totalClients}
+            {summary.totalClients}
           </p>
           <p className="text-xs text-muted-foreground mt-1">Total de Clientes</p>
         </div>
@@ -154,28 +182,11 @@ const Billing = () => {
             <TrendingUp className="w-8 h-8 text-warning" />
           </div>
           <p className="text-3xl font-display font-bold text-warning">
-            R$ {BILLING_SUMMARY.projectedRevenue.toLocaleString()}
+            R$ {summary.projectedRevenue.toLocaleString()}
           </p>
           <p className="text-xs text-muted-foreground mt-1">Projeção Próximo Mês</p>
         </div>
       </div>
-
-      {/* Overdue Alert */}
-      {BILLING_SUMMARY.overdueClients > 0 && (
-        <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/30">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-6 h-6 text-destructive" />
-            <div>
-              <p className="font-semibold text-destructive">
-                {BILLING_SUMMARY.overdueClients} clientes em atraso
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Total em aberto: R$ {BILLING_SUMMARY.overdueAmount.toLocaleString()}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Client List */}
       <div className="rounded-xl bg-card border border-border">
@@ -301,12 +312,7 @@ const Billing = () => {
           ))}
         </div>
 
-        {filteredClients.length === 0 && (
-          <div className="p-8 text-center">
-            <Users className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-            <p className="text-muted-foreground">Nenhum cliente encontrado</p>
-          </div>
-        )}
+        {filteredClients.length === 0 && <EmptyState />}
       </div>
     </div>
   );

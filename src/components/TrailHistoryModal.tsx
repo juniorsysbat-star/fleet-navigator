@@ -8,7 +8,6 @@
  import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
  import { cn } from '@/lib/utils';
  import { VehicleWithStatus } from '@/types/vehicle';
-import { generateRealisticTrail } from '@/data/mockTrailHistory';
 import { TrailPoint } from '@/types/trail';
  
  interface TrailHistoryModalProps {
