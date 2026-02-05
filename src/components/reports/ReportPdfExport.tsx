@@ -30,7 +30,7 @@
    const { user } = useAuth();
  
    // Só mostra para gerentes ou admin
-   if (!user || (user.role !== 'manager' && user.role !== 'admin')) {
+   if (!user || (user.role !== 'manager' && user.role !== 'super_admin' && user.role !== 'embarcador')) {
      return null;
    }
  

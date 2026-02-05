@@ -14,6 +14,7 @@
  import AdminUsers from "./pages/AdminUsers";
  import NotFound from "./pages/NotFound";
  import Login from "./pages/Login";
+ import ResellerBilling from "./pages/ResellerBilling";
  
  const queryClient = new QueryClient();
  
@@ -51,6 +52,11 @@
                  <Route path="/settings" element={
                    <AppLayout>
                      <Settings />
+                   </AppLayout>
+                 } />
+                 <Route path="/reseller-billing" element={
+                   <AppLayout>
+                     <ResellerBilling />
                    </AppLayout>
                  } />
                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

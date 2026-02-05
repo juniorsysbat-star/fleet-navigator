@@ -13,7 +13,7 @@
  const editUserSchema = z.object({
    name: z.string().trim().min(2, 'Nome deve ter pelo menos 2 caracteres').max(100, 'Nome muito longo'),
    email: z.string().trim().email('Email inválido').max(255, 'Email muito longo'),
-   role: z.enum(['admin', 'manager', 'user']),
+   role: z.enum(['super_admin', 'embarcador', 'manager', 'user']),
    status: z.enum(['active', 'inactive', 'pending']),
  });
  
@@ -33,7 +33,6 @@
    const [isLoading, setIsLoading] = useState(false);
    const [errors, setErrors] = useState<Record<string, string>>({});
  
-   // Populate form when user changes
    useEffect(() => {
      if (user) {
        setName(user.name);
@@ -64,8 +63,6 @@
      }
  
      setIsLoading(true);
-     
-     // Simulate API call
      await new Promise(resolve => setTimeout(resolve, 500));
      
      const updatedUser: User = {
@@ -82,10 +79,11 @@
      onClose();
    };
  
-   const roles: { value: UserRole; label: string; description: string }[] = [
-     { value: 'admin', label: 'Administrador', description: 'Acesso total ao sistema' },
-     { value: 'manager', label: 'Gerente', description: 'Gestão de veículos e usuários' },
-     { value: 'user', label: 'Usuário', description: 'Visualização de veículos permitidos' },
+   const roles: { value: UserRole; label: string; description: string; color: string }[] = [
+     { value: 'super_admin', label: 'Super Admin', description: 'Acesso total ao sistema', color: 'destructive' },
+     { value: 'embarcador', label: 'Embarcador', description: 'Revendedor White Label', color: 'purple-500' },
+     { value: 'manager', label: 'Gerente', description: 'Gestão de veículos e usuários', color: 'warning' },
+     { value: 'user', label: 'Usuário', description: 'Visualização de veículos permitidos', color: 'accent' },
    ];
  
    const statuses: { value: 'active' | 'inactive' | 'pending'; label: string; color: string }[] = [
@@ -94,17 +92,21 @@
      { value: 'pending', label: 'Pendente', color: 'border-warning/50 bg-warning/10 text-warning' },
    ];
  
+   const getColorClass = (colorName: string, type: 'border' | 'bg' | 'text') => {
+     const colorMap: Record<string, Record<string, string>> = {
+       destructive: { border: 'border-destructive', bg: 'bg-destructive', text: 'text-destructive' },
+       'purple-500': { border: 'border-purple-500', bg: 'bg-purple-500', text: 'text-purple-500' },
+       warning: { border: 'border-warning', bg: 'bg-warning', text: 'text-warning' },
+       accent: { border: 'border-accent', bg: 'bg-accent', text: 'text-accent' },
+     };
+     return colorMap[colorName]?.[type] || '';
+   };
+ 
    return (
      <div className="fixed inset-0 z-[2000] flex items-center justify-center">
-       {/* Backdrop */}
-       <div 
-         className="absolute inset-0 bg-background/80 backdrop-blur-sm"
-         onClick={onClose}
-       />
+       <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
        
-       {/* Modal */}
        <div className="relative w-full max-w-lg mx-4 bg-card border border-border rounded-xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-         {/* Header */}
          <div className="flex items-center justify-between p-6 border-b border-border sticky top-0 bg-card z-10">
            <div className="flex items-center gap-3">
              <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center">
@@ -115,19 +117,12 @@
                <p className="text-xs text-muted-foreground">Atualizar dados de {user.name}</p>
              </div>
            </div>
-           <Button
-             variant="ghost"
-             size="icon"
-             onClick={onClose}
-             className="rounded-full"
-           >
+           <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
              <X className="w-4 h-4" />
            </Button>
          </div>
  
-         {/* Content */}
          <div className="p-6 space-y-5">
-           {/* Name */}
            <div className="space-y-2">
              <Label className="text-sm font-medium flex items-center gap-2">
                <UserIcon className="w-4 h-4 text-muted-foreground" />
@@ -146,7 +141,6 @@
              )}
            </div>
  
-           {/* Email */}
            <div className="space-y-2">
              <Label className="text-sm font-medium flex items-center gap-2">
                <Mail className="w-4 h-4 text-muted-foreground" />
@@ -166,7 +160,6 @@
              )}
            </div>
  
-           {/* Status Selection */}
            <div className="space-y-3">
              <Label className="text-sm font-medium flex items-center gap-2">
                <Shield className="w-4 h-4 text-muted-foreground" />
@@ -179,9 +172,7 @@
                    type="button"
                    onClick={() => setStatus(s.value)}
                    className={`p-3 rounded-lg border transition-all text-center ${
-                     status === s.value
-                       ? s.color
-                       : 'border-border bg-muted/50 hover:bg-muted text-foreground'
+                     status === s.value ? s.color : 'border-border bg-muted/50 hover:bg-muted text-foreground'
                    }`}
                  >
                    <span className="text-sm font-medium">{s.label}</span>
@@ -190,7 +181,6 @@
              </div>
            </div>
  
-           {/* Expiration Date */}
            <div className="space-y-2">
              <Label className="text-sm font-medium flex items-center gap-2">
                <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -219,9 +209,7 @@
                  />
                </PopoverContent>
              </Popover>
-             <p className="text-xs text-muted-foreground">
-               Deixe em branco para acesso sem vencimento
-             </p>
+             <p className="text-xs text-muted-foreground">Deixe em branco para acesso sem vencimento</p>
              {expirationDate && (
                <Button
                  variant="ghost"
@@ -234,7 +222,6 @@
              )}
            </div>
  
-           {/* Role Selection */}
            <div className="space-y-3">
              <Label className="text-sm font-medium flex items-center gap-2">
                <Shield className="w-4 h-4 text-muted-foreground" />
@@ -248,42 +235,20 @@
                    onClick={() => setRole(r.value)}
                    className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
                      role === r.value
-                       ? r.value === 'admin'
-                         ? 'border-destructive/50 bg-destructive/10'
-                         : r.value === 'manager'
-                         ? 'border-warning/50 bg-warning/10'
-                         : 'border-accent/50 bg-accent/10'
+                       ? `${getColorClass(r.color, 'border')}/50 ${getColorClass(r.color, 'bg')}/10`
                        : 'border-border bg-muted/50 hover:bg-muted'
                    }`}
                  >
                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                     role === r.value
-                       ? r.value === 'admin'
-                         ? 'border-destructive'
-                         : r.value === 'manager'
-                         ? 'border-warning'
-                         : 'border-accent'
-                       : 'border-muted-foreground'
+                     role === r.value ? getColorClass(r.color, 'border') : 'border-muted-foreground'
                    }`}>
                      {role === r.value && (
-                       <div className={`w-2 h-2 rounded-full ${
-                         r.value === 'admin'
-                           ? 'bg-destructive'
-                           : r.value === 'manager'
-                           ? 'bg-warning'
-                           : 'bg-accent'
-                       }`} />
+                       <div className={`w-2 h-2 rounded-full ${getColorClass(r.color, 'bg')}`} />
                      )}
                    </div>
                    <div>
                      <span className={`text-sm font-medium ${
-                       role === r.value
-                         ? r.value === 'admin'
-                           ? 'text-destructive'
-                           : r.value === 'manager'
-                           ? 'text-warning'
-                           : 'text-accent'
-                         : 'text-foreground'
+                       role === r.value ? getColorClass(r.color, 'text') : 'text-foreground'
                      }`}>
                        {r.label}
                      </span>
@@ -295,15 +260,8 @@
            </div>
          </div>
  
-         {/* Footer */}
          <div className="flex items-center justify-end gap-3 p-6 border-t border-border sticky bottom-0 bg-card">
-           <Button
-             variant="ghost"
-             onClick={onClose}
-             disabled={isLoading}
-           >
-             Cancelar
-           </Button>
+           <Button variant="ghost" onClick={onClose} disabled={isLoading}>Cancelar</Button>
            <Button
              onClick={handleSubmit}
              disabled={isLoading || !name || !email}
