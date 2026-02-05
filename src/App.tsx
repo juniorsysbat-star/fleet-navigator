@@ -20,6 +20,8 @@ import { AnnouncementModal } from "@/components/announcements/AnnouncementModal"
  import Drivers from "./pages/Drivers";
  import Maintenances from "./pages/Maintenances";
 import MobilePhotoCapture from "./pages/MobilePhotoCapture";
+import { SmartNotificationCenter } from "@/components/notifications/SmartNotificationCenter";
+import { PendingItemsModal } from "@/components/notifications/PendingItemsModal";
  
  const queryClient = new QueryClient();
  
@@ -32,6 +34,8 @@ import MobilePhotoCapture from "./pages/MobilePhotoCapture";
              <Toaster />
              <Sonner />
             <AnnouncementModal />
+           <SmartNotificationCenter />
+           <PendingItemsModal />
              <BrowserRouter>
                <Routes>
                  <Route path="/login" element={<Login />} />
