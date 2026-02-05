@@ -36,16 +36,15 @@
  } from 'recharts';
  import { format } from 'date-fns';
  import { ptBR } from 'date-fns/locale';
- import { 
-   FuelRecord, 
-   MOCK_FUEL_RECORDS, 
-   calculateFuelMetrics,
-   getConsumptionTrend,
-   getCostByVehicle,
-   getCostPerKmTrend,
-   FUEL_TYPE_LABELS,
- } from '@/data/mockFuelRecords';
- import { FuelEntryModal } from './FuelEntryModal';
+import { 
+  FuelRecord, 
+  calculateFuelMetrics,
+  getConsumptionTrend,
+  getCostByVehicle,
+  getCostPerKmTrend,
+  FUEL_TYPE_LABELS,
+} from '@/types/fuel';
+import { FuelEntryModal } from './FuelEntryModal';
  
  const CHART_COLORS = [
    'hsl(var(--accent))',
@@ -56,7 +55,7 @@
  ];
  
  export const FuelDashboard = () => {
-   const [records, setRecords] = useState<FuelRecord[]>(MOCK_FUEL_RECORDS);
+   const [records, setRecords] = useState<FuelRecord[]>([]);
    const [isModalOpen, setIsModalOpen] = useState(false);
    const [editingRecord, setEditingRecord] = useState<FuelRecord | null>(null);
  

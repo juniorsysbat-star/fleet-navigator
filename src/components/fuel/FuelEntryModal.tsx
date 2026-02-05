@@ -10,8 +10,8 @@
  import { format } from 'date-fns';
  import { ptBR } from 'date-fns/locale';
  import { CalendarIcon } from 'lucide-react';
- import { FuelRecord, FuelType, FUEL_TYPE_LABELS } from '@/data/mockFuelRecords';
- import { MOCK_VEHICLES } from '@/data/mockVehicles';
+import { FuelRecord, FuelType, FUEL_TYPE_LABELS } from '@/types/fuel';
+import { useVehiclesContext } from '@/contexts/VehiclesContext';
  
  interface FuelEntryModalProps {
    isOpen: boolean;
@@ -20,7 +20,8 @@
    editRecord?: FuelRecord | null;
  }
  
- export const FuelEntryModal = ({ isOpen, onClose, onSave, editRecord }: FuelEntryModalProps) => {
+export const FuelEntryModal = ({ isOpen, onClose, onSave, editRecord }: FuelEntryModalProps) => {
+  const { vehicles } = useVehiclesContext();
    const [vehicleId, setVehicleId] = useState('');
    const [date, setDate] = useState<Date>(new Date());
    const [odometer, setOdometer] = useState('');
@@ -81,7 +82,7 @@
    const handleSubmit = (e: React.FormEvent) => {
      e.preventDefault();
      
-     const vehicle = MOCK_VEHICLES.find(v => v.device_id === vehicleId);
+     const vehicle = vehicles.find(v => v.device_id === vehicleId);
      if (!vehicle) return;
  
      const record: Omit<FuelRecord, 'id'> = {
@@ -142,11 +143,11 @@
                  <SelectValue placeholder="Selecione o veículo" />
                </SelectTrigger>
                <SelectContent>
-                 {MOCK_VEHICLES.map(v => (
-                   <SelectItem key={v.device_id} value={v.device_id}>
-                     {v.device_name}
-                   </SelectItem>
-                 ))}
+                  {vehicles.map(v => (
+                    <SelectItem key={v.device_id} value={v.device_id}>
+                      {v.device_name}
+                    </SelectItem>
+                  ))}
                </SelectContent>
              </Select>
            </div>

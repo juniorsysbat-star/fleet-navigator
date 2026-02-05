@@ -16,8 +16,8 @@
    SelectTrigger,
    SelectValue,
  } from '@/components/ui/select';
- import { Driver, DriverFormData } from '@/types/driver';
- import { MOCK_VEHICLES } from '@/data/mockVehicles';
+import { Driver, DriverFormData } from '@/types/driver';
+import { useVehiclesContext } from '@/contexts/VehiclesContext';
 import { User, Phone, CreditCard, Calendar, Car, Camera, QrCode, Smartphone } from 'lucide-react';
 import { QRCodePhotoCapture } from './QRCodePhotoCapture';
  
@@ -29,7 +29,8 @@ import { QRCodePhotoCapture } from './QRCodePhotoCapture';
    assignedVehicleIds: string[];
  }
  
- export function DriverModal({ isOpen, onClose, onSave, driver, assignedVehicleIds }: DriverModalProps) {
+export function DriverModal({ isOpen, onClose, onSave, driver, assignedVehicleIds }: DriverModalProps) {
+  const { vehicles } = useVehiclesContext();
    const [formData, setFormData] = useState<DriverFormData>({
      name: '',
      cnh: '',
@@ -81,9 +82,9 @@ import { QRCodePhotoCapture } from './QRCodePhotoCapture';
    };
  
    // Veículos disponíveis (não atribuídos a outros motoristas)
-   const availableVehicles = MOCK_VEHICLES.filter(
-     v => !assignedVehicleIds.includes(v.device_id) || v.device_id === driver?.currentVehicleId
-   );
+    const availableVehicles = vehicles.filter(
+      v => !assignedVehicleIds.includes(v.device_id) || v.device_id === driver?.currentVehicleId
+    );
  
    return (
      <Dialog open={isOpen} onOpenChange={onClose}>

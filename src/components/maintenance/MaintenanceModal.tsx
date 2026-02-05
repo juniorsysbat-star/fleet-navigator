@@ -1,33 +1,33 @@
- import { useState, useEffect } from 'react';
- import {
-   Dialog,
-   DialogContent,
-   DialogHeader,
-   DialogTitle,
-   DialogFooter,
- } from '@/components/ui/dialog';
- import { Button } from '@/components/ui/button';
- import { Input } from '@/components/ui/input';
- import { Label } from '@/components/ui/label';
- import { Textarea } from '@/components/ui/textarea';
- import {
-   Select,
-   SelectContent,
-   SelectItem,
-   SelectTrigger,
-   SelectValue,
- } from '@/components/ui/select';
- import { MaintenanceFormData, MaintenanceTriggerType } from '@/types/maintenance';
- import { MOCK_VEHICLES } from '@/data/mockVehicles';
- import { Wrench, Car, Calendar, Gauge, FileText } from 'lucide-react';
- import { cn } from '@/lib/utils';
- 
- interface MaintenanceModalProps {
-   isOpen: boolean;
-   onClose: () => void;
-   onSave: (data: MaintenanceFormData) => void;
-   preselectedVehicleId?: string;
- }
+import { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { MaintenanceFormData, MaintenanceTriggerType } from '@/types/maintenance';
+import { useVehiclesContext } from '@/contexts/VehiclesContext';
+import { Wrench, Car, Calendar, Gauge, FileText } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface MaintenanceModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: MaintenanceFormData) => void;
+  preselectedVehicleId?: string;
+}
  
  const MAINTENANCE_TYPES = [
    'Troca de Óleo',
@@ -41,7 +41,8 @@
    'Outros',
  ];
  
- export function MaintenanceModal({ isOpen, onClose, onSave, preselectedVehicleId }: MaintenanceModalProps) {
+export function MaintenanceModal({ isOpen, onClose, onSave, preselectedVehicleId }: MaintenanceModalProps) {
+  const { vehicles } = useVehiclesContext();
    const [formData, setFormData] = useState<MaintenanceFormData>({
      vehicleId: preselectedVehicleId || '',
      type: '',
@@ -105,11 +106,11 @@
                  <SelectValue placeholder="Selecione o veículo" />
                </SelectTrigger>
                <SelectContent>
-                 {MOCK_VEHICLES.map((vehicle) => (
-                   <SelectItem key={vehicle.device_id} value={vehicle.device_id}>
-                     {vehicle.device_name}
-                   </SelectItem>
-                 ))}
+                  {vehicles.map((vehicle) => (
+                    <SelectItem key={vehicle.device_id} value={vehicle.device_id}>
+                      {vehicle.device_name}
+                    </SelectItem>
+                  ))}
                </SelectContent>
              </Select>
            </div>

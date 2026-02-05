@@ -27,32 +27,45 @@
  import { EditUserModal } from '@/components/admin/EditUserModal';
  import { VehicleAssociationModal } from '@/components/admin/VehicleAssociationModal';
  import { User, UserRole } from '@/types/user';
- import { 
-   MOCK_USERS, 
-   MOCK_USER_DEVICE_ASSOCIATIONS,
-   getRoleLabel, 
-   getRoleColor, 
-   getStatusLabel, 
-   getStatusColor 
- } from '@/data/mockUsers';
- import { MOCK_VEHICLES } from '@/data/mockVehicles';
- import { VehicleWithStatus } from '@/types/vehicle';
- import { toast } from 'sonner';
- 
- const AdminUsers = () => {
-   const [users, setUsers] = useState<User[]>(MOCK_USERS);
-   const [associations, setAssociations] = useState(MOCK_USER_DEVICE_ASSOCIATIONS);
-   const [searchQuery, setSearchQuery] = useState('');
-   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-   const [editingUser, setEditingUser] = useState<User | null>(null);
-   const [selectedUserForVehicles, setSelectedUserForVehicles] = useState<User | null>(null);
-   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
- 
-   const vehicles: VehicleWithStatus[] = MOCK_VEHICLES.map(v => ({
-     ...v,
-     isMoving: v.speed > 5,
-     status: v.speed > 5 ? 'moving' : 'stopped',
-   }));
+import { useVehiclesContext } from '@/contexts/VehiclesContext';
+import { VehicleWithStatus } from '@/types/vehicle';
+import { toast } from 'sonner';
+
+// Helper functions (moved from mockUsers)
+const getRoleLabel = (role: UserRole) => {
+  const labels: Record<UserRole, string> = {
+    super_admin: 'Super Admin',
+    embarcador: 'Embarcador',
+    manager: 'Gerente',
+    user: 'Usuário',
+  };
+  return labels[role];
+};
+
+const getRoleColor = (role: UserRole) => {
+  const colors: Record<UserRole, string> = {
+    super_admin: 'bg-destructive/10 text-destructive border-destructive/30',
+    embarcador: 'bg-accent/10 text-accent border-accent/30',
+    manager: 'bg-warning/10 text-warning border-warning/30',
+    user: 'bg-secondary text-muted-foreground border-border',
+  };
+  return colors[role];
+};
+
+const getStatusLabel = (status: string) => status === 'active' ? 'Ativo' : 'Inativo';
+const getStatusColor = (status: string) => status === 'active' 
+  ? 'bg-success/10 text-success border-success/30' 
+  : 'bg-muted text-muted-foreground border-border';
+
+const AdminUsers = () => {
+  const { vehicles } = useVehiclesContext();
+  const [users, setUsers] = useState<User[]>([]);
+  const [associations, setAssociations] = useState<Record<string, string[]>>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [selectedUserForVehicles, setSelectedUserForVehicles] = useState<User | null>(null);
+  const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
  
    const filteredUsers = users.filter(user => {
      const matchesSearch = 
@@ -62,13 +75,13 @@
      return matchesSearch && matchesRole;
    });
  
-   const getUserVehicleCount = (userId: string): number => {
-     return associations.filter(a => a.userId === userId).length;
-   };
- 
-   const getUserAssociations = (userId: string): string[] => {
-     return associations.filter(a => a.userId === userId).map(a => a.deviceId);
-   };
+  const getUserVehicleCount = (userId: string): number => {
+    return associations[userId]?.length || 0;
+  };
+
+  const getUserAssociations = (userId: string): string[] => {
+    return associations[userId] || [];
+  };
  
    const handleCreateUser = (userData: { name: string; email: string; password: string; role: UserRole }) => {
      const newUser: User = {
@@ -85,10 +98,8 @@
      });
    };
  
-   const handleSaveVehicleAssociations = (userId: string, vehicleIds: string[]) => {
-     const otherAssociations = associations.filter(a => a.userId !== userId);
-     const newAssociations = vehicleIds.map(deviceId => ({ userId, deviceId }));
-     setAssociations([...otherAssociations, ...newAssociations]);
+  const handleSaveVehicleAssociations = (userId: string, vehicleIds: string[]) => {
+    setAssociations(prev => ({ ...prev, [userId]: vehicleIds }));
      
      const user = users.find(u => u.id === userId);
      toast.success('Veículos associados!', {
@@ -103,10 +114,14 @@
      });
    };
  
-   const handleDeleteUser = (userId: string) => {
-     const user = users.find(u => u.id === userId);
-     setUsers(users.filter(u => u.id !== userId));
-     setAssociations(associations.filter(a => a.userId !== userId));
+  const handleDeleteUser = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    setUsers(users.filter(u => u.id !== userId));
+    setAssociations(prev => {
+      const newAssoc = { ...prev };
+      delete newAssoc[userId];
+      return newAssoc;
+    });
      toast.success('Cliente removido', {
        description: `${user?.name} foi removido do sistema.`,
      });
