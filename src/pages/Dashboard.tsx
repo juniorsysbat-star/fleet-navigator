@@ -40,7 +40,7 @@ const Dashboard = () => {
   const [panelStates, setPanelStates] = useState<PanelStates>({
     vehicleList: 'open',
     vehicleDetail: 'closed',
-    geofence: 'open',
+   geofence: 'closed',
     mission: 'closed',
   });
   
@@ -237,11 +237,13 @@ const Dashboard = () => {
           selectedVehicleId={selectedVehicleId}
           onVehicleSelect={handleVehicleSelect}
           trailData={showTrail ? trailData : null}
-          geofences={geofences}
+         geofences={panelStates.geofence === 'open' ? geofences : []}
           isDrawingGeofence={isDrawingGeofence}
           onGeofenceDrawn={handleGeofenceDrawn}
           selectedGeofenceId={selectedGeofenceId}
           activeMission={activeMission}
+         showGeofenceButton={panelStates.geofence !== 'open'}
+         onOpenGeofencePanel={() => setPanelState('geofence', 'open')}
         />
 
         {/* Geofence Panel */}

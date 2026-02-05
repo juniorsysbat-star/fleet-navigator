@@ -5,6 +5,7 @@ import { Geofence } from '@/data/mockGeofences';
 import { Mission } from '@/types/mission';
  import { Button } from '@/components/ui/button';
  import { TrafficCone, Layers, Crosshair } from 'lucide-react';
+ import { Hexagon } from 'lucide-react';
 import { getCurrentRoadSpeedLimit } from '@/services/routingService';
 import { createVehicleIcon } from './map/vehicleIcons';
 import 'leaflet/dist/leaflet.css';
@@ -34,6 +35,8 @@ interface VehicleMapProps {
   onGeofenceDrawn?: (coordinates: { lat: number; lng: number }[]) => void;
   selectedGeofenceId?: string | null;
   activeMission?: Mission | null;
+ showGeofenceButton?: boolean;
+ onOpenGeofencePanel?: () => void;
 }
 
 export function VehicleMap({ 
@@ -45,7 +48,9 @@ export function VehicleMap({
   isDrawingGeofence = false,
   onGeofenceDrawn,
   selectedGeofenceId,
-  activeMission
+   activeMission,
+   showGeofenceButton = false,
+   onOpenGeofencePanel
 }: VehicleMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -757,6 +762,19 @@ export function VehicleMap({
 
       {/* Traffic Layer Toggle Button */}
       <div className="absolute top-4 right-4 z-[1000]">
+         <div className="flex items-center gap-2">
+           {showGeofenceButton && onOpenGeofencePanel && (
+             <Button
+               variant="outline"
+               size="sm"
+               onClick={onOpenGeofencePanel}
+               className="gap-2 backdrop-blur-sm bg-card/90 hover:bg-card border-border hover:border-accent/50 transition-all duration-200"
+               title="Abrir painel de Cercas Virtuais"
+             >
+               <Hexagon className="w-4 h-4 text-muted-foreground" />
+               <span className="text-xs font-medium">Cercas</span>
+             </Button>
+           )}
         <Button
           variant={isTrafficEnabled ? "default" : "outline"}
           size="sm"
@@ -773,6 +791,7 @@ export function VehicleMap({
           </span>
           <Layers className={`w-3 h-3 ${isTrafficEnabled ? 'animate-pulse' : 'text-muted-foreground'}`} />
         </Button>
+         </div>
       </div>
  
      {/* Recenter Button - Only shows when following a vehicle but map was moved */}
