@@ -1,17 +1,24 @@
-import { useState, useEffect } from 'react';
-import { X, Cpu, Hash, Phone, Smartphone, Car, Bike, Truck, CarFront, Tractor, Bus, Palette } from 'lucide-react';
+ import { useState, useEffect, useMemo } from 'react';
+ import { X, Cpu, Hash, Phone, Car, Bike, Truck, CarFront, Tractor, Bus, Palette, ChevronRight, Server, Info, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { VehicleType } from '@/types/vehicle';
+ import { VehicleType } from '@/types/vehicle';
+ import { TRACKER_DATABASE, getManufacturerById, getModelById, SERVER_IP, TrackerModel } from '@/data/trackerDatabase';
+ import { MercosulPlate, validatePlate } from './MercosulPlate';
+ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export interface DeviceFormData {
   id?: string;
   name: string;
+   plate: string;
   imei: string;
   model: string;
+   manufacturerId: string;
+   modelId: string;
+   port: number;
   simPhone: string;
   vehicleType: VehicleType;
   iconColor: string;
@@ -25,12 +32,12 @@ interface DeviceModalProps {
 }
 
 const VEHICLE_TYPES: { type: VehicleType; label: string; icon: typeof Car }[] = [
-  { type: 'sedan', label: 'Carro', icon: Car },
-  { type: 'motorcycle', label: 'Moto', icon: Bike },
-  { type: 'truck', label: 'Caminhão', icon: Truck },
-  { type: 'pickup', label: 'Caminhonete', icon: CarFront },
-  { type: 'tractor', label: 'Trator', icon: Tractor },
-  { type: 'bus', label: 'Ônibus', icon: Bus },
+   { type: 'sedan', label: 'Carro', icon: Car },
+   { type: 'motorcycle', label: 'Moto', icon: Bike },
+   { type: 'truck', label: 'Caminhão', icon: Truck },
+   { type: 'pickup', label: 'Pickup', icon: CarFront },
+   { type: 'tractor', label: 'Trator', icon: Tractor },
+   { type: 'bus', label: 'Ônibus', icon: Bus },
 ];
 
 const ICON_COLORS = [
@@ -44,30 +51,32 @@ const ICON_COLORS = [
   { name: 'Roxo', value: '#a855f7' },
 ];
 
-const DEVICE_MODELS = [
-  'Suntech ST300',
-  'Queclink GV300',
-  'Teltonika FMB920',
-  'Coban GPS103',
-  'Concox GT06N',
-  'Meitrack T333',
-  'Outro',
-];
-
 export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModalProps) => {
-  const [name, setName] = useState('');
+   const [plate, setPlate] = useState('');
   const [imei, setImei] = useState('');
-  const [model, setModel] = useState('');
+   const [manufacturerId, setManufacturerId] = useState('');
+   const [modelId, setModelId] = useState('');
   const [simPhone, setSimPhone] = useState('');
   const [vehicleType, setVehicleType] = useState<VehicleType>('sedan');
   const [iconColor, setIconColor] = useState('status');
   const [errors, setErrors] = useState<Record<string, string>>({});
+ 
+   // Derived state for selected model and port
+   const selectedManufacturer = useMemo(() => 
+     getManufacturerById(manufacturerId), [manufacturerId]);
+   
+   const selectedModel = useMemo(() => 
+     getModelById(manufacturerId, modelId), [manufacturerId, modelId]);
+   
+   const availableModels = useMemo(() => 
+     selectedManufacturer?.models || [], [selectedManufacturer]);
 
   useEffect(() => {
     if (editDevice) {
-      setName(editDevice.name);
+       setPlate(editDevice.plate || editDevice.name);
       setImei(editDevice.imei);
-      setModel(editDevice.model);
+       setManufacturerId(editDevice.manufacturerId || '');
+       setModelId(editDevice.modelId || '');
       setSimPhone(editDevice.simPhone);
       setVehicleType(editDevice.vehicleType || 'sedan');
       setIconColor(editDevice.iconColor || 'status');
@@ -77,20 +86,30 @@ export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModal
   }, [editDevice, isOpen]);
 
   const resetForm = () => {
-    setName('');
+     setPlate('');
     setImei('');
-    setModel('');
+     setManufacturerId('');
+     setModelId('');
     setSimPhone('');
     setVehicleType('sedan');
     setIconColor('status');
     setErrors({});
   };
+ 
+   // Reset model when manufacturer changes
+   useEffect(() => {
+     if (!editDevice) {
+       setModelId('');
+     }
+   }, [manufacturerId, editDevice]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
     
-    if (!name.trim()) {
-      newErrors.name = 'Nome é obrigatório';
+     if (!plate.trim()) {
+       newErrors.plate = 'Placa é obrigatória';
+     } else if (!validatePlate(plate)) {
+       newErrors.plate = 'Formato inválido. Use AAA1A23 ou AAA-1234';
     }
     
     if (!imei.trim()) {
@@ -99,8 +118,12 @@ export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModal
       newErrors.imei = 'IMEI deve ter 15 dígitos numéricos';
     }
     
-    if (!model) {
-      newErrors.model = 'Modelo é obrigatório';
+     if (!manufacturerId) {
+       newErrors.manufacturer = 'Selecione o fabricante';
+     }
+     
+     if (!modelId) {
+       newErrors.model = 'Selecione o modelo';
     }
     
     setErrors(newErrors);
@@ -111,12 +134,18 @@ export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModal
     e.preventDefault();
     
     if (!validate()) return;
+ 
+     const cleanPlate = plate.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
     onSave({
       id: editDevice?.id,
-      name: name.trim(),
+       name: cleanPlate,
+       plate: cleanPlate,
       imei: imei.trim(),
-      model,
+       model: selectedModel?.name || '',
+       manufacturerId,
+       modelId,
+       port: selectedModel?.port || 5023,
       simPhone: simPhone.trim(),
       vehicleType,
       iconColor,
@@ -145,7 +174,7 @@ export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModal
               <h2 className="font-display text-lg font-bold text-foreground">
                 {editDevice ? 'Editar Dispositivo' : 'Novo Dispositivo'}
               </h2>
-              <p className="text-xs text-muted-foreground">Cadastre um rastreador GPS</p>
+               <p className="text-xs text-muted-foreground">Assistente inteligente de cadastro</p>
             </div>
           </div>
           <button
@@ -158,7 +187,122 @@ export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModal
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-4 space-y-5">
-          {/* Preview */}
+           {/* Step 1: Manufacturer Selection */}
+           <div className="space-y-3">
+             <Label className="flex items-center gap-2 text-accent">
+               <span className="w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center text-xs font-bold">1</span>
+               Fabricante do Rastreador
+             </Label>
+             <Select value={manufacturerId} onValueChange={setManufacturerId}>
+               <SelectTrigger className={cn(
+                 "h-12 text-base",
+                 errors.manufacturer ? 'border-destructive' : '',
+                 manufacturerId ? 'border-accent/50 bg-accent/5' : ''
+               )}>
+                 <SelectValue placeholder="Selecione o fabricante..." />
+               </SelectTrigger>
+               <SelectContent>
+                 {TRACKER_DATABASE.map(manufacturer => (
+                   <SelectItem key={manufacturer.id} value={manufacturer.id}>
+                     <div className="flex items-center gap-2">
+                       <Cpu className="w-4 h-4 text-muted-foreground" />
+                       {manufacturer.name}
+                     </div>
+                   </SelectItem>
+                 ))}
+               </SelectContent>
+             </Select>
+             {errors.manufacturer && (
+               <p className="text-xs text-destructive">{errors.manufacturer}</p>
+             )}
+           </div>
+ 
+           {/* Step 2: Model Selection (only shown after manufacturer) */}
+           {manufacturerId && (
+             <div className="space-y-3 animate-in slide-in-from-top-2 duration-200">
+               <Label className="flex items-center gap-2 text-accent">
+                 <span className="w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center text-xs font-bold">2</span>
+                 Modelo Específico
+               </Label>
+               <Select value={modelId} onValueChange={setModelId}>
+                 <SelectTrigger className={cn(
+                   "h-12 text-base",
+                   errors.model ? 'border-destructive' : '',
+                   modelId ? 'border-accent/50 bg-accent/5' : ''
+                 )}>
+                   <SelectValue placeholder="Selecione o modelo..." />
+                 </SelectTrigger>
+                 <SelectContent>
+                   <SelectGroup>
+                     <SelectLabel className="text-xs text-muted-foreground">
+                       Modelos {selectedManufacturer?.name}
+                     </SelectLabel>
+                     {availableModels.map(model => (
+                       <SelectItem key={model.id} value={model.id}>
+                         <div className="flex items-center justify-between gap-4 w-full">
+                           <span>{model.name}</span>
+                           <span className="text-xs text-muted-foreground">Porta {model.port}</span>
+                         </div>
+                       </SelectItem>
+                     ))}
+                   </SelectGroup>
+                 </SelectContent>
+               </Select>
+               {errors.model && (
+                 <p className="text-xs text-destructive">{errors.model}</p>
+               )}
+             </div>
+           )}
+ 
+           {/* Server Configuration Alert (shown after model selection) */}
+           {selectedModel && (
+             <Alert className="border-accent/30 bg-accent/5 animate-in slide-in-from-top-2 duration-200">
+               <Server className="h-4 w-4 text-accent" />
+               <AlertDescription className="text-sm">
+                 <span className="font-semibold text-accent">Configure seu rastreador:</span>
+                 <div className="mt-2 p-2 bg-background/50 rounded-md font-mono text-xs space-y-1">
+                   <div className="flex justify-between">
+                     <span className="text-muted-foreground">Servidor:</span>
+                     <span className="text-foreground font-semibold">{SERVER_IP}</span>
+                   </div>
+                   <div className="flex justify-between">
+                     <span className="text-muted-foreground">Porta:</span>
+                     <span className="text-accent font-bold">{selectedModel.port}</span>
+                   </div>
+                 </div>
+               </AlertDescription>
+             </Alert>
+           )}
+ 
+           {/* Plate Input with Mercosul Preview */}
+           <div className="space-y-3">
+             <Label htmlFor="device-plate" className="flex items-center gap-2">
+               <Hash className="w-4 h-4" />
+               Placa do Veículo *
+             </Label>
+             <Input
+               id="device-plate"
+               value={plate}
+               onChange={(e) => {
+                 const val = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 8);
+                 setPlate(val);
+               }}
+               placeholder="Ex: ABC1D23"
+               maxLength={8}
+               className={cn(
+                 "text-center text-lg font-mono tracking-widest",
+                 errors.plate ? 'border-destructive' : ''
+               )}
+             />
+             {errors.plate && (
+               <p className="text-xs text-destructive">{errors.plate}</p>
+             )}
+             
+             {/* Mercosul Plate Preview */}
+             <MercosulPlate plate={plate} />
+           </div>
+ 
+           {/* Icon Preview */}
           <div className="flex items-center justify-center p-4 bg-secondary/30 rounded-xl border border-border/50">
             <div 
               className="w-16 h-16 rounded-xl flex items-center justify-center border-2 transition-all duration-300"
@@ -253,24 +397,6 @@ export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModal
             </p>
           </div>
 
-          {/* Name */}
-          <div className="space-y-2">
-            <Label htmlFor="device-name" className="flex items-center gap-2">
-              <Smartphone className="w-4 h-4" />
-              Nome do Veículo *
-            </Label>
-            <Input
-              id="device-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: Caminhão 01"
-              className={errors.name ? 'border-destructive' : ''}
-            />
-            {errors.name && (
-              <p className="text-xs text-destructive">{errors.name}</p>
-            )}
-          </div>
-
           {/* IMEI */}
           <div className="space-y-2">
             <Label htmlFor="device-imei" className="flex items-center gap-2">
@@ -296,41 +422,6 @@ export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModal
             </p>
           </div>
 
-          {/* Model */}
-          <div className="space-y-2">
-            <Label htmlFor="device-model" className="flex items-center gap-2">
-              <Cpu className="w-4 h-4" />
-              Modelo do Rastreador *
-            </Label>
-            <Select value={model} onValueChange={setModel}>
-              <SelectTrigger className={errors.model ? 'border-destructive' : ''}>
-                <SelectValue placeholder="Selecione o modelo" />
-              </SelectTrigger>
-              <SelectContent>
-                {DEVICE_MODELS.map(m => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.model && (
-              <p className="text-xs text-destructive">{errors.model}</p>
-            )}
-          </div>
-
-          {/* SIM Phone */}
-          <div className="space-y-2">
-            <Label htmlFor="device-phone" className="flex items-center gap-2">
-              <Phone className="w-4 h-4" />
-              Telefone do Chip (opcional)
-            </Label>
-            <Input
-              id="device-phone"
-              value={simPhone}
-              onChange={(e) => setSimPhone(e.target.value)}
-              placeholder="Ex: +55 11 99999-9999"
-            />
-          </div>
-
           {/* Actions */}
           <div className="flex gap-3 pt-4 sticky bottom-0 bg-card/95 backdrop-blur-xl pb-2">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">
@@ -343,6 +434,28 @@ export const DeviceModal = ({ isOpen, onClose, onSave, editDevice }: DeviceModal
               {editDevice ? 'Atualizar' : 'Adicionar Dispositivo'}
             </Button>
           </div>
+           
+           {/* SIM Phone (collapsible advanced) */}
+           <details className="group">
+             <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground flex items-center gap-1">
+               <ChevronRight className="w-3 h-3 transition-transform group-open:rotate-90" />
+               Opções avançadas
+             </summary>
+             <div className="mt-3 space-y-3 animate-in slide-in-from-top-1">
+               <div className="space-y-2">
+                 <Label htmlFor="device-phone" className="flex items-center gap-2">
+                   <Phone className="w-4 h-4" />
+                   Telefone do Chip (opcional)
+                 </Label>
+                 <Input
+                   id="device-phone"
+                   value={simPhone}
+                   onChange={(e) => setSimPhone(e.target.value)}
+                   placeholder="Ex: +55 11 99999-9999"
+                 />
+               </div>
+             </div>
+           </details>
         </form>
       </div>
     </div>
