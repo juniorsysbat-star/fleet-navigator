@@ -36,49 +36,52 @@ import { TrailPoint } from '@/types/trail';
      setTrailSummary(null);
    };
  
-   const handleSearch = async () => {
-     if (!selectedDate) return;
- 
-     setIsLoading(true);
-     
-     // Simulate API call delay
-     await new Promise(resolve => setTimeout(resolve, 800));
- 
-     // Generate realistic trail for selected date
-     const trail = generateRealisticTrail(
-       vehicle.latitude,
-       vehicle.longitude,
-       selectedDate
-     );
- 
-     // Calculate summary
-     const stops = trail.filter(p => p.isStop).length;
-     const totalKm = trail.reduce((acc, point, i) => {
-       if (i === 0) return 0;
-       const prev = trail[i - 1];
-       const dist = haversineDistance(prev.lat, prev.lng, point.lat, point.lng);
-       return acc + dist;
-     }, 0);
- 
-     const startTime = trail[0]?.timestamp;
-     const endTime = trail[trail.length - 1]?.timestamp;
-     const durationMs = endTime && startTime 
-       ? new Date(endTime).getTime() - new Date(startTime).getTime()
-       : 0;
-     const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
-     const durationMins = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
- 
-     setTrailSummary({
-       totalKm: Math.round(totalKm * 10) / 10,
-       duration: `${durationHours}h ${durationMins}min`,
-       stops,
-       startTime: startTime ? format(new Date(startTime), 'HH:mm', { locale: ptBR }) : '--:--',
-       endTime: endTime ? format(new Date(endTime), 'HH:mm', { locale: ptBR }) : '--:--',
-     });
- 
-     onTrailLoad(trail);
-     setIsLoading(false);
-   };
+  const handleSearch = async () => {
+    if (!selectedDate) return;
+
+    setIsLoading(true);
+    
+    // TODO: Implementar chamada à API de histórico de trajeto
+    // A API deve retornar os pontos do trajeto para a data selecionada
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Por enquanto, sem dados até a API ser implementada
+    const trail: TrailPoint[] = [];
+
+    if (trail.length === 0) {
+      setTrailSummary(null);
+      setIsLoading(false);
+      return;
+    }
+
+    // Calculate summary from API data
+    const stops = trail.filter(p => p.isStop).length;
+    const totalKm = trail.reduce((acc, point, i) => {
+      if (i === 0) return 0;
+      const prev = trail[i - 1];
+      const dist = haversineDistance(prev.lat, prev.lng, point.lat, point.lng);
+      return acc + dist;
+    }, 0);
+
+    const startTime = trail[0]?.timestamp;
+    const endTime = trail[trail.length - 1]?.timestamp;
+    const durationMs = endTime && startTime 
+      ? new Date(endTime).getTime() - new Date(startTime).getTime()
+      : 0;
+    const durationHours = Math.floor(durationMs / (1000 * 60 * 60));
+    const durationMins = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    setTrailSummary({
+      totalKm: Math.round(totalKm * 10) / 10,
+      duration: `${durationHours}h ${durationMins}min`,
+      stops,
+      startTime: startTime ? format(new Date(startTime), 'HH:mm', { locale: ptBR }) : '--:--',
+      endTime: endTime ? format(new Date(endTime), 'HH:mm', { locale: ptBR }) : '--:--',
+    });
+
+    onTrailLoad(trail);
+    setIsLoading(false);
+  };
  
    const handleClose = () => {
      setSelectedDate(undefined);
