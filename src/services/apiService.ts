@@ -19,6 +19,7 @@ interface LoginResponse {
     // Outros campos do Traccar...
   };
   message?: string;
+  token?: string;
 }
 
 // Estrutura Real do Traccar (/api/devices)
