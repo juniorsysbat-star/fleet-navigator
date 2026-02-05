@@ -1,8 +1,9 @@
  import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import L from 'leaflet';
-import { VehicleWithStatus, VehicleType, getStatusVisual, getStatusColor } from '@/types/vehicle';
+ import { VehicleWithStatus, VehicleType, getStatusVisual } from '@/types/vehicle';
 import { Geofence } from '@/data/mockGeofences';
 import { Mission } from '@/types/mission';
+  import { TrailPoint } from '@/data/mockTrailHistory';
  import { Button } from '@/components/ui/button';
  import { TrafficCone, Layers, Crosshair } from 'lucide-react';
  import { Hexagon } from 'lucide-react';
@@ -27,7 +28,7 @@ interface VehicleMapProps {
   vehicles: VehicleWithStatus[];
   selectedVehicleId: string | null;
   onVehicleSelect: (id: string) => void;
-  trailData?: { lat: number; lng: number }[] | null;
+   trailData?: TrailPoint[] | null;
   geofences?: Geofence[];
   pendingGeofence?: Geofence | null;
   isDrawingGeofence?: boolean;
@@ -449,50 +450,193 @@ export function VehicleMap({
 
     // Draw new trail
     if (trailData && trailData.length > 1) {
-      const latLngs: L.LatLngExpression[] = trailData.map(p => [p.lat, p.lng]);
-      
-      // Shadow polyline for glow
-      L.polyline(latLngs, {
-        color: '#00bfff',
-        weight: 12,
-        opacity: 0.3,
-        lineCap: 'round',
-        lineJoin: 'round',
-      }).addTo(map);
-
-      const polyline = L.polyline(latLngs, {
-        color: '#00bfff',
-        weight: 4,
-        opacity: 0.8,
-        dashArray: '10, 10',
-        lineCap: 'round',
-        lineJoin: 'round',
-      }).addTo(map);
-
-      // Start marker
-      const startMarker = L.marker(latLngs[0], {
-        icon: L.divIcon({
-          className: 'trail-marker',
-          html: `<div style="width: 12px; height: 12px; background: #00bfff; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 10px #00bfff;"></div>`,
-          iconSize: [12, 12],
-          iconAnchor: [6, 6],
-        }),
-      }).addTo(map);
-
-      // End marker
-      const endMarker = L.marker(latLngs[latLngs.length - 1], {
-        icon: L.divIcon({
-          className: 'trail-marker',
-          html: `<div style="width: 16px; height: 16px; background: #00ff88; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 10px #00ff88;"></div>`,
-          iconSize: [16, 16],
-          iconAnchor: [8, 8],
-        }),
-      }).addTo(map);
-
-      trailMarkersRef.current = [startMarker, endMarker];
-      polylineRef.current = polyline;
-
-      map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+       const latLngs: L.LatLngExpression[] = trailData.map(p => [p.lat, p.lng]);
+       const markers: L.Marker[] = [];
+       
+       // Shadow polyline for glow effect
+       const shadowLine = L.polyline(latLngs, {
+         color: '#3b82f6',
+         weight: 10,
+         opacity: 0.25,
+         lineCap: 'round',
+         lineJoin: 'round',
+       }).addTo(map);
+ 
+       // Main solid polyline (blue, thicker, no dash)
+       const polyline = L.polyline(latLngs, {
+         color: '#3b82f6',
+         weight: 4,
+         opacity: 0.9,
+         lineCap: 'round',
+         lineJoin: 'round',
+       }).addTo(map);
+ 
+       // Add directional arrows along the trail
+       const arrowInterval = Math.max(1, Math.floor(trailData.length / 15)); // ~15 arrows
+       for (let i = arrowInterval; i < trailData.length - 1; i += arrowInterval) {
+         const curr = trailData[i];
+         const next = trailData[i + 1];
+         if (!curr || !next) continue;
+         
+         // Calculate angle
+         const angle = Math.atan2(next.lng - curr.lng, next.lat - curr.lat) * (180 / Math.PI);
+         
+         const arrowMarker = L.marker([curr.lat, curr.lng], {
+           icon: L.divIcon({
+             className: 'trail-arrow',
+             html: `<div style="
+               width: 0;
+               height: 0;
+               border-left: 6px solid transparent;
+               border-right: 6px solid transparent;
+               border-bottom: 10px solid #3b82f6;
+               transform: rotate(${angle - 90}deg);
+               filter: drop-shadow(0 0 3px rgba(59, 130, 246, 0.8));
+             "></div>`,
+             iconSize: [12, 10],
+             iconAnchor: [6, 5],
+           }),
+           interactive: false,
+         }).addTo(map);
+         markers.push(arrowMarker);
+       }
+ 
+       // Start marker (green flag)
+       const startMarker = L.marker(latLngs[0], {
+         icon: L.divIcon({
+           className: 'trail-start-marker',
+           html: `
+             <div style="
+               position: relative;
+               display: flex;
+               flex-direction: column;
+               align-items: center;
+             ">
+               <div style="
+                 width: 28px;
+                 height: 28px;
+                 background: linear-gradient(135deg, #22c55e, #16a34a);
+                 border: 3px solid white;
+                 border-radius: 50%;
+                 display: flex;
+                 align-items: center;
+                 justify-content: center;
+                 box-shadow: 0 0 15px rgba(34, 197, 94, 0.8);
+               ">
+                 <svg width="14" height="14" viewBox="0 0 24 24" fill="white" stroke="none">
+                   <path d="M4 21V4h16v9l-8 8H4z"/>
+                 </svg>
+               </div>
+               <div style="
+                 margin-top: 2px;
+                 padding: 2px 6px;
+                 background: rgba(0,0,0,0.8);
+                 border-radius: 4px;
+                 font-size: 9px;
+                 font-weight: bold;
+                 color: #22c55e;
+                 white-space: nowrap;
+               ">INÍCIO</div>
+             </div>
+           `,
+           iconSize: [28, 45],
+           iconAnchor: [14, 14],
+         }),
+       }).addTo(map);
+       markers.push(startMarker);
+ 
+       // Stop markers (red stop signs)
+       const stops = trailData.filter(p => p.isStop);
+       stops.forEach((stop, idx) => {
+         const stopMarker = L.marker([stop.lat, stop.lng], {
+           icon: L.divIcon({
+             className: 'trail-stop-marker',
+             html: `
+               <div style="
+                 width: 22px;
+                 height: 22px;
+                 background: linear-gradient(135deg, #ef4444, #dc2626);
+                 border: 2px solid white;
+                 border-radius: 4px;
+                 display: flex;
+                 align-items: center;
+                 justify-content: center;
+                 box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+                 transform: rotate(45deg);
+               ">
+                 <svg width="12" height="12" viewBox="0 0 24 24" fill="white" stroke="none" style="transform: rotate(-45deg);">
+                   <rect x="6" y="6" width="12" height="12" rx="1"/>
+                 </svg>
+               </div>
+             `,
+             iconSize: [22, 22],
+             iconAnchor: [11, 11],
+           }),
+         });
+         
+         stopMarker.bindPopup(`
+           <div style="font-family: sans-serif; min-width: 100px;">
+             <strong style="color: #ef4444;">🛑 Parada ${idx + 1}</strong><br>
+             <span style="font-size: 12px; color: #666;">
+               Duração: ${stop.stopDuration || '?'} min
+             </span>
+           </div>
+         `);
+         
+         stopMarker.addTo(map);
+         markers.push(stopMarker);
+       });
+ 
+       // End marker (checkered flag)
+       const endMarker = L.marker(latLngs[latLngs.length - 1], {
+         icon: L.divIcon({
+           className: 'trail-end-marker',
+           html: `
+             <div style="
+               position: relative;
+               display: flex;
+               flex-direction: column;
+               align-items: center;
+             ">
+               <div style="
+                 width: 28px;
+                 height: 28px;
+                 background: linear-gradient(135deg, #f59e0b, #d97706);
+                 border: 3px solid white;
+                 border-radius: 50%;
+                 display: flex;
+                 align-items: center;
+                 justify-content: center;
+                 box-shadow: 0 0 15px rgba(245, 158, 11, 0.8);
+               ">
+                 <svg width="14" height="14" viewBox="0 0 24 24" fill="white" stroke="none">
+                   <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                   <line x1="4" x2="4" y1="22" y2="15" stroke="white" stroke-width="2"/>
+                 </svg>
+               </div>
+               <div style="
+                 margin-top: 2px;
+                 padding: 2px 6px;
+                 background: rgba(0,0,0,0.8);
+                 border-radius: 4px;
+                 font-size: 9px;
+                 font-weight: bold;
+                 color: #f59e0b;
+                 white-space: nowrap;
+               ">FIM</div>
+             </div>
+           `,
+           iconSize: [28, 45],
+           iconAnchor: [14, 14],
+         }),
+       }).addTo(map);
+       markers.push(endMarker);
+ 
+       trailMarkersRef.current = markers;
+       polylineRef.current = polyline;
+ 
+       // Fit bounds to show entire trail
+       map.fitBounds(polyline.getBounds(), { padding: [60, 60] });
     }
   }, [trailData, isMapReady]);
 

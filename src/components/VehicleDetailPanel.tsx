@@ -21,11 +21,13 @@ import { useState } from 'react';
 import { DeviceModal, DeviceFormData } from '@/components/admin/DeviceModal';
  import { getVehicleIcon } from '@/utils/vehicleIcons';
  import { getStatusVisual } from '@/types/vehicle';
+ import { TrailHistoryModal } from './TrailHistoryModal';
+ import { TrailPoint } from '@/data/mockTrailHistory';
 
 interface VehicleDetailPanelProps {
   vehicle: VehicleWithStatus | null;
   onClose: () => void;
-  onShowTrail: (vehicleId: string) => void;
+   onShowTrail: (vehicleId: string, trail?: TrailPoint[]) => void;
   isTrailVisible: boolean;
   onOpenMissionPlanner: () => void;
   onMinimize?: () => void;
@@ -42,6 +44,7 @@ export function VehicleDetailPanel({
   onVehicleUpdate,
 }: VehicleDetailPanelProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+   const [isTrailHistoryOpen, setIsTrailHistoryOpen] = useState(false);
 
   if (!vehicle) return null;
 
@@ -297,24 +300,34 @@ export function VehicleDetailPanel({
           </div>
         </div>
 
-        {/* Trail Button */}
-        <Button
-          onClick={() => onShowTrail(vehicle.device_id)}
-          variant={isTrailVisible ? "default" : "outline"}
-          className={cn(
-            "w-full gap-2 font-semibold",
-            isTrailVisible && "bg-accent text-accent-foreground"
-          )}
-        >
-          <Route className="w-4 h-4" />
-          {isTrailVisible ? 'Ocultar Trajeto' : 'Ver Trajeto'}
-        </Button>
+       {/* Trail Buttons */}
+       <div className="space-y-2">
+         <Button
+           onClick={() => setIsTrailHistoryOpen(true)}
+           variant="outline"
+           className="w-full gap-2 font-semibold border-accent/50 text-accent hover:bg-accent/10"
+         >
+           <Route className="w-4 h-4" />
+           Ver Histórico de Trajeto
+         </Button>
+         
+         {isTrailVisible && (
+           <Button
+             onClick={() => onShowTrail(vehicle.device_id)}
+             variant="destructive"
+             size="sm"
+             className="w-full gap-2 text-xs"
+           >
+             Ocultar Trajeto
+           </Button>
+         )}
+       </div>
 
         {/* Mission Planner Button */}
         <Button
           onClick={onOpenMissionPlanner}
           variant="outline"
-          className="w-full gap-2 font-semibold mt-3 border-accent/50 text-accent hover:bg-accent/10"
+         className="w-full gap-2 font-semibold border-accent/50 text-accent hover:bg-accent/10"
         >
           <Rocket className="w-4 h-4" />
           Nova Missão
@@ -344,6 +357,17 @@ export function VehicleDetailPanel({
         onSave={handleSaveVehicle}
         editDevice={vehicleToFormData()}
       />
+ 
+     {/* Trail History Modal */}
+     <TrailHistoryModal
+       isOpen={isTrailHistoryOpen}
+       onClose={() => setIsTrailHistoryOpen(false)}
+       vehicle={vehicle}
+       onTrailLoad={(trail) => {
+         onShowTrail(vehicle.device_id, trail);
+         setIsTrailHistoryOpen(false);
+       }}
+     />
     </>
   );
 }
