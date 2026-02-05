@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import L from 'leaflet';
 import { VehicleWithStatus, VehicleType } from '@/types/vehicle';
 import { Geofence } from '@/data/mockGeofences';
 import { Mission } from '@/types/mission';
-import { Button } from '@/components/ui/button';
-import { TrafficCone, Layers } from 'lucide-react';
+ import { Button } from '@/components/ui/button';
+ import { TrafficCone, Layers, Crosshair } from 'lucide-react';
 import { getCurrentRoadSpeedLimit } from '@/services/routingService';
 import { createVehicleIcon } from './map/vehicleIcons';
 import 'leaflet/dist/leaflet.css';
@@ -62,6 +62,46 @@ export function VehicleMap({
   const trafficLayerRef = useRef<L.TileLayer | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
   const [isTrafficEnabled, setIsTrafficEnabled] = useState(false);
+   const [userHasInteracted, setUserHasInteracted] = useState(false);
+   const [showRecenterButton, setShowRecenterButton] = useState(false);
+   
+   // Track the last time user selected a vehicle (to force center)
+   const lastVehicleSelectionRef = useRef<string | null>(null);
+   const interactionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+ 
+   // Check if map is centered on selected vehicle
+   const checkIfCenteredOnVehicle = useCallback(() => {
+     if (!mapRef.current || !selectedVehicleId) return;
+     
+     const selectedVehicle = vehicles.find(v => v.device_id === selectedVehicleId);
+     if (!selectedVehicle) return;
+     
+     const mapCenter = mapRef.current.getCenter();
+     const vehiclePos = L.latLng(selectedVehicle.latitude, selectedVehicle.longitude);
+     const distance = mapCenter.distanceTo(vehiclePos);
+     
+     // If more than 500m away from vehicle, show recenter button
+     setShowRecenterButton(userHasInteracted && distance > 500);
+   }, [selectedVehicleId, vehicles, userHasInteracted]);
+ 
+   // Handle recenter button click
+   const handleRecenter = useCallback(() => {
+     if (!mapRef.current || !selectedVehicleId) return;
+     
+     const selectedVehicle = vehicles.find(v => v.device_id === selectedVehicleId);
+     if (!selectedVehicle) return;
+     
+     // Reset interaction state
+     setUserHasInteracted(false);
+     setShowRecenterButton(false);
+     
+     // Fly to vehicle
+     mapRef.current.flyTo(
+       [selectedVehicle.latitude, selectedVehicle.longitude],
+       16,
+       { duration: 0.8 }
+     );
+   }, [selectedVehicleId, vehicles]);
 
   // Toggle traffic layer
   const handleToggleTraffic = useCallback(() => {
@@ -184,13 +224,50 @@ export function VehicleMap({
 
     mapRef.current = map;
     setIsMapReady(true);
+ 
+     // Listen for user interactions (drag, zoom)
+     const handleInteractionStart = () => {
+       setUserHasInteracted(true);
+       
+       // Clear any existing timeout
+       if (interactionTimeoutRef.current) {
+         clearTimeout(interactionTimeoutRef.current);
+       }
+     };
+ 
+     const handleMoveEnd = () => {
+       // Check if we should show recenter button after move ends
+       setTimeout(() => {
+         if (mapRef.current) {
+           // Trigger recenter check
+           setShowRecenterButton(prev => prev); // Force re-evaluation
+         }
+       }, 100);
+     };
+ 
+     map.on('dragstart', handleInteractionStart);
+     map.on('zoomstart', handleInteractionStart);
+     map.on('moveend', handleMoveEnd);
 
     return () => {
+       map.off('dragstart', handleInteractionStart);
+       map.off('zoomstart', handleInteractionStart);
+       map.off('moveend', handleMoveEnd);
+       
+       if (interactionTimeoutRef.current) {
+         clearTimeout(interactionTimeoutRef.current);
+       }
+       
       map.remove();
       mapRef.current = null;
       setIsMapReady(false);
     };
-  }, []);
+   }, []);
+ 
+   // Update recenter button visibility when relevant state changes
+   useEffect(() => {
+     checkIfCenteredOnVehicle();
+   }, [checkIfCenteredOnVehicle, userHasInteracted, vehicles]);
 
   // Handle geofence drawing
   useEffect(() => {
@@ -405,21 +482,36 @@ export function VehicleMap({
   // Handle selected vehicle change
   useEffect(() => {
     if (!mapRef.current || !selectedVehicleId || !isMapReady) return;
+ 
+     // Check if this is a NEW vehicle selection (user clicked on sidebar)
+     const isNewSelection = lastVehicleSelectionRef.current !== selectedVehicleId;
+     lastVehicleSelectionRef.current = selectedVehicleId;
 
     const selectedVehicle = vehicles.find(v => v.device_id === selectedVehicleId);
     if (selectedVehicle) {
-      mapRef.current.flyTo(
-        [selectedVehicle.latitude, selectedVehicle.longitude],
-        16,
-        { duration: 1 }
-      );
+       // Only auto-center if:
+       // 1. This is a new selection (user clicked on different vehicle)
+       // 2. User has NOT interacted with the map
+       if (isNewSelection || !userHasInteracted) {
+         // Reset interaction state on new selection
+         if (isNewSelection) {
+           setUserHasInteracted(false);
+           setShowRecenterButton(false);
+         }
+         
+         mapRef.current.flyTo(
+           [selectedVehicle.latitude, selectedVehicle.longitude],
+           16,
+           { duration: 1 }
+         );
+       }
 
       const marker = markersRef.current.get(selectedVehicleId);
       if (marker) {
         marker.openPopup();
       }
     }
-  }, [selectedVehicleId, vehicles, isMapReady]);
+   }, [selectedVehicleId, vehicles, isMapReady, userHasInteracted]);
 
   // Handle trail polyline
   useEffect(() => {
@@ -682,6 +774,21 @@ export function VehicleMap({
           <Layers className={`w-3 h-3 ${isTrafficEnabled ? 'animate-pulse' : 'text-muted-foreground'}`} />
         </Button>
       </div>
+ 
+     {/* Recenter Button - Only shows when following a vehicle but map was moved */}
+     {selectedVehicleId && showRecenterButton && (
+       <div className="absolute bottom-6 right-4 z-[1000] animate-in fade-in slide-in-from-bottom-2 duration-300">
+         <Button
+           variant="default"
+           size="sm"
+           onClick={handleRecenter}
+           className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg shadow-accent/30"
+         >
+           <Crosshair className="w-4 h-4" />
+           <span className="text-xs font-medium">Re-centralizar</span>
+         </Button>
+       </div>
+     )}
     </div>
   );
 }
