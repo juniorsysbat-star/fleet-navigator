@@ -1,53 +1,24 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Vehicle, VehicleWithStatus } from "@/types/vehicle";
 import { API_CONFIG } from "@/config/api";
-import { generateDemoVehicles, animateDemoVehicles } from "@/data/mockDemoVehicles";
-import { useAuth } from "@/contexts/AuthContext";
 import type { DeviceFormData } from "@/components/admin/DeviceModal";
 import {
   fetchVehiclesFromApi,
-  createVehicle,
-  deleteVehicleApi,
-  updateVehicleApi,
   NormalizedVehicle,
+  createVehicle,
+  updateVehicle as apiUpdateVehicle,
 } from "@/services/apiService";
 import { onVehicleUpdate, isSocketConnected } from "@/services/socketService";
+import { toast } from "@/hooks/use-toast";
 
-export function useVehicles(forceDemoMode?: boolean) {
-  let isDemoFromContext = false;
-  let isApiConnectedFromContext = false;
-
-  try {
-    const auth = useAuth();
-    isDemoFromContext = auth.isDemoMode;
-    isApiConnectedFromContext = auth.isApiConnected;
-  } catch {}
-
-  const isDemo = forceDemoMode ?? isDemoFromContext;
-
+export function useVehicles() {
+  // Começa VAZIO - Sem mentiras
   const [vehicles, setVehicles] = useState<VehicleWithStatus[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [isUsingMockData, setIsUsingMockData] = useState(isDemo);
 
-  const demoVehiclesRef = useRef<Vehicle[]>([]);
-  const socketCleanupRef = useRef<(() => void) | null>(null);
-
-  const processVehicles = (data: Vehicle[], isMock: boolean = false): VehicleWithStatus[] => {
-    return data.map((vehicle) => {
-      const extendedVehicle = vehicle as Vehicle & { blocked?: boolean; alarm?: string | null; ignition?: boolean };
-      return {
-        ...vehicle,
-        isMoving: vehicle.speed > 0,
-        status: vehicle.speed > 5 ? "moving" : vehicle.speed > 0 ? "idle" : "stopped",
-        ignition: extendedVehicle.ignition,
-        blocked: extendedVehicle.blocked,
-        alarm: extendedVehicle.alarm,
-      };
-    });
-  };
-
+  // Normalização de dados
   const normalizedToVehicle = (nv: NormalizedVehicle): Vehicle => ({
     device_id: nv.device_id,
     device_name: nv.device_name,
@@ -58,40 +29,47 @@ export function useVehicles(forceDemoMode?: boolean) {
     devicetime: nv.devicetime,
   });
 
+  const processVehicles = (data: Vehicle[]): VehicleWithStatus[] => {
+    return data.map((vehicle) => {
+      const extendedVehicle = vehicle as Vehicle & { blocked?: boolean; alarm?: string | null; ignition?: boolean };
+      return {
+        ...vehicle,
+        isMoving: vehicle.speed > 0,
+        status: vehicle.speed > 5 ? "moving" : vehicle.speed > 0 ? "idle" : "stopped",
+        ignition: extendedVehicle.ignition ?? vehicle.speed > 0,
+        batteryLevel: 100, // Valor padrão se a API não mandar
+        blocked: extendedVehicle.blocked,
+        alarm: extendedVehicle.alarm,
+      };
+    });
+  };
+
+  // Busca dados da API REAL
   const fetchVehicles = useCallback(async () => {
-    if (isDemo) {
-      if (demoVehiclesRef.current.length === 0) {
-        demoVehiclesRef.current = generateDemoVehicles();
-      } else {
-        demoVehiclesRef.current = animateDemoVehicles(demoVehiclesRef.current);
-      }
-      setVehicles(processVehicles(demoVehiclesRef.current, true));
-      setLastUpdate(new Date());
-      setIsUsingMockData(true);
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      setIsLoading(true);
-      const normalizedData = await fetchVehiclesFromApi();
-      const data: Vehicle[] = normalizedData.map(normalizedToVehicle);
-
-      setVehicles(processVehicles(data, false));
-      setLastUpdate(new Date());
       setError(null);
-      setIsUsingMockData(false);
+      const normalizedData = await fetchVehiclesFromApi();
+
+      // Se a API retornar vazio, é vazio mesmo
+      if (!normalizedData || normalizedData.length === 0) {
+        setVehicles([]);
+        return;
+      }
+
+      const data: Vehicle[] = normalizedData.map(normalizedToVehicle);
+      setVehicles(processVehicles(data));
+      setLastUpdate(new Date());
     } catch (err) {
       console.error("Erro ao buscar veículos:", err);
-      setError("Falha ao conectar com servidor");
+      // Não usamos mais mocks em caso de erro
+      setError("Falha ao conectar com o servidor. Verifique sua conexão.");
     } finally {
       setIsLoading(false);
     }
-  }, [isDemo]);
+  }, []);
 
-  // Socket
+  // WebSockets
   useEffect(() => {
-    if (isDemo) return;
     const unsubscribe = onVehicleUpdate((updatedVehicles) => {
       if (updatedVehicles.length === 0) return;
       setVehicles((prev) => {
@@ -102,8 +80,8 @@ export function useVehicles(forceDemoMode?: boolean) {
             return {
               ...vehicle,
               ...updated,
-              isMoving: updated.speed > 0,
               status: updated.speed > 5 ? "moving" : updated.speed > 0 ? "idle" : "stopped",
+              isMoving: updated.speed > 0,
             };
           }
           return vehicle;
@@ -111,90 +89,73 @@ export function useVehicles(forceDemoMode?: boolean) {
       });
       setLastUpdate(new Date());
     });
-    socketCleanupRef.current = unsubscribe;
     return () => {
       unsubscribe();
     };
-  }, [isDemo]);
-
-  useEffect(() => {
-    return () => {
-      if (socketCleanupRef.current) socketCleanupRef.current();
-    };
   }, []);
 
+  // Loop de atualização (Polling)
   useEffect(() => {
     fetchVehicles();
     const interval = setInterval(fetchVehicles, API_CONFIG.REFRESH_INTERVAL);
     return () => clearInterval(interval);
   }, [fetchVehicles]);
 
-  const movingCount = vehicles.filter((v) => v.speed > 5).length;
-  const stoppedCount = vehicles.filter((v) => v.speed <= 5).length;
-
-  // Adicionar Veículo (API REAL)
-  const addVehicle = useCallback(
-    async (device: DeviceFormData) => {
-      setIsLoading(true);
-      try {
-        await createVehicle({
-          name: device.plate || device.name || "Sem Nome",
-          uniqueId: device.imei,
-        });
-        await fetchVehicles(); // Recarrega lista
-        return {} as any;
-      } catch (err) {
-        console.error(err);
-        setError("Erro ao salvar veículo. Verifique se o IMEI já existe.");
-        throw err;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [fetchVehicles],
-  );
-
-  // Editar Veículo (API REAL)
+  // Atualizar Veículo (PUT na API)
   const updateVehicle = useCallback(
     async (device: DeviceFormData) => {
       if (!device.id) return;
-      setIsLoading(true);
       try {
-        // Tenta converter ID para numero, Traccar usa ID numérico
-        const idNum = parseInt(device.id);
-        if (!isNaN(idNum)) {
-          await updateVehicleApi(idNum, {
-            name: device.plate || device.name,
-            uniqueId: device.imei,
-          });
-          await fetchVehicles();
-        }
+        // Chama a API de verdade
+        await apiUpdateVehicle(device.id, {
+          id: device.id,
+          name: device.plate || device.name,
+          uniqueId: device.imei,
+        });
+
+        // Atualiza lista local após sucesso
+        fetchVehicles();
       } catch (err) {
-        console.error(err);
-        setError("Erro ao atualizar veículo");
-      } finally {
-        setIsLoading(false);
+        console.error("Erro ao atualizar veículo:", err);
+        toast({
+          title: "Erro ao salvar",
+          description: "Não foi possível atualizar o veículo no servidor.",
+          variant: "destructive",
+        });
       }
     },
     [fetchVehicles],
   );
 
-  // Remover Veículo (API REAL)
-  const removeVehicle = useCallback(
-    async (id: string) => {
+  // Adicionar Veículo (POST na API)
+  const addVehicle = useCallback(
+    async (device: DeviceFormData) => {
       try {
-        setIsLoading(true);
-        await deleteVehicleApi(id);
-        await fetchVehicles();
+        // Chama a API de verdade
+        await createVehicle({
+          name: device.plate || device.name,
+          uniqueId: device.imei,
+        });
+
+        // Atualiza lista local após sucesso
+        fetchVehicles();
+
+        return { device_id: "temp", device_name: "Salvando..." } as any; // Retorno temporário
       } catch (err) {
-        console.error(err);
-        setError("Erro ao remover veículo");
-      } finally {
-        setIsLoading(false);
+        console.error("Erro ao criar veículo:", err);
+        toast({
+          title: "Erro ao criar",
+          description: "Não foi possível cadastrar o veículo. Verifique se o IMEI já existe.",
+          variant: "destructive",
+        });
+        throw err;
       }
     },
     [fetchVehicles],
   );
+
+  const movingCount = vehicles.filter((v) => v.speed > 5).length;
+  const stoppedCount = vehicles.filter((v) => v.speed <= 5).length;
 
   return {
     vehicles,
@@ -203,13 +164,12 @@ export function useVehicles(forceDemoMode?: boolean) {
     lastUpdate,
     movingCount,
     stoppedCount,
-    isUsingMockData,
-    isDemoMode: isDemo,
+    isUsingMockData: false, // Nunca mais será true
+    isDemoMode: false,
     isSocketConnected: isSocketConnected(),
-    isApiConnected: isApiConnectedFromContext,
+    isApiConnected: true,
     refetch: fetchVehicles,
     updateVehicle,
     addVehicle,
-    removeVehicle, // Disponível para uso no componente
   };
 }
