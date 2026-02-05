@@ -26,13 +26,10 @@
    vehicleType: VehicleType = 'sedan',
    customColor?: string
  ): L.DivIcon => {
-   // Use custom color if provided and not 'status', otherwise use status color
-   const useCustomColor = customColor && customColor !== 'status';
    const statusColors = STATUS_COLORS[status];
-   const color = useCustomColor ? customColor : statusColors.main;
-   const glowColor = useCustomColor 
-     ? `${customColor}80` // Add 50% opacity
-     : statusColors.glow;
+  // Always use status color - ignore custom color for consistency
+  const color = statusColors.main;
+  const glowColor = statusColors.glow;
    
    const isSpeeding = status === 'speeding';
    const svgPath = VEHICLE_SVG_PATHS[vehicleType] || VEHICLE_SVG_PATHS.sedan;
