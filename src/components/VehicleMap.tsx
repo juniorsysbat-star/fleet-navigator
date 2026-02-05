@@ -64,7 +64,7 @@ export function VehicleMap({
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
   const polylineRef = useRef<L.Polyline | null>(null);
   const trailMarkersRef = useRef<L.Marker[]>([]);
-  const geofenceLayersRef = useRef<Map<string, L.Polygon>>(new Map());
+  const geofenceLayersRef = useRef<Map<string, L.Layer>>(new Map());
   const pendingGeofenceLayerRef = useRef<L.Polygon | L.Circle | null>(null);
   const missionRouteRef = useRef<L.Polyline | null>(null);
   const missionCorridorRef = useRef<L.Polyline | null>(null);
@@ -72,46 +72,7 @@ export function VehicleMap({
   const trafficLayerRef = useRef<L.TileLayer | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
   const [isTrafficEnabled, setIsTrafficEnabled] = useState(false);
-   const [userHasInteracted, setUserHasInteracted] = useState(false);
-   const [showRecenterButton, setShowRecenterButton] = useState(false);
-   
-   // Track the last time user selected a vehicle (to force center)
-   const lastVehicleSelectionRef = useRef<string | null>(null);
-   const interactionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
- 
-   // Check if map is centered on selected vehicle
-   const checkIfCenteredOnVehicle = useCallback(() => {
-     if (!mapRef.current || !selectedVehicleId) return;
-     
-     const selectedVehicle = vehicles.find(v => v.device_id === selectedVehicleId);
-     if (!selectedVehicle) return;
-     
-     const mapCenter = mapRef.current.getCenter();
-     const vehiclePos = L.latLng(selectedVehicle.latitude, selectedVehicle.longitude);
-     const distance = mapCenter.distanceTo(vehiclePos);
-     
-     // If more than 500m away from vehicle, show recenter button
-     setShowRecenterButton(userHasInteracted && distance > 500);
-   }, [selectedVehicleId, vehicles, userHasInteracted]);
- 
-   // Handle recenter button click
-   const handleRecenter = useCallback(() => {
-     if (!mapRef.current || !selectedVehicleId) return;
-     
-     const selectedVehicle = vehicles.find(v => v.device_id === selectedVehicleId);
-     if (!selectedVehicle) return;
-     
-     // Reset interaction state
-     setUserHasInteracted(false);
-     setShowRecenterButton(false);
-     
-     // Fly to vehicle
-     mapRef.current.flyTo(
-       [selectedVehicle.latitude, selectedVehicle.longitude],
-       16,
-       { duration: 0.8 }
-     );
-   }, [selectedVehicleId, vehicles]);
+  const [shouldFollowVehicle, setShouldFollowVehicle] = useState(false);
 
   // Toggle traffic layer
   const handleToggleTraffic = useCallback(() => {
@@ -233,49 +194,39 @@ export function VehicleMap({
     mapRef.current = map;
     setIsMapReady(true);
  
-     // Listen for user interactions (drag, zoom)
-     const handleInteractionStart = () => {
-       setUserHasInteracted(true);
-       
-       // Clear any existing timeout
-       if (interactionTimeoutRef.current) {
-         clearTimeout(interactionTimeoutRef.current);
-       }
-     };
- 
-     const handleMoveEnd = () => {
-       // Check if we should show recenter button after move ends
-       setTimeout(() => {
-         if (mapRef.current) {
-           // Trigger recenter check
-           setShowRecenterButton(prev => prev); // Force re-evaluation
-         }
-       }, 100);
-     };
- 
-     map.on('dragstart', handleInteractionStart);
-     map.on('zoomstart', handleInteractionStart);
-     map.on('moveend', handleMoveEnd);
+    // Disable follow as soon as user interacts with the camera (drag/zoom)
+    const handleDragStart = () => {
+      setShouldFollowVehicle(false);
+    };
+
+    const handleMoveStart = (e: any) => {
+      // movestart also fires for programmatic flyTo; only disable on real user input
+      if (e?.originalEvent) {
+        setShouldFollowVehicle(false);
+      }
+    };
+
+    const handleZoomStart = (e: any) => {
+      // zoomstart can happen programmatically; only disable on user input
+      if (e?.originalEvent) {
+        setShouldFollowVehicle(false);
+      }
+    };
+
+    map.on('dragstart', handleDragStart);
+    map.on('movestart', handleMoveStart);
+    map.on('zoomstart', handleZoomStart);
 
     return () => {
-       map.off('dragstart', handleInteractionStart);
-       map.off('zoomstart', handleInteractionStart);
-       map.off('moveend', handleMoveEnd);
-       
-       if (interactionTimeoutRef.current) {
-         clearTimeout(interactionTimeoutRef.current);
-       }
+      map.off('dragstart', handleDragStart);
+      map.off('movestart', handleMoveStart);
+      map.off('zoomstart', handleZoomStart);
        
       map.remove();
       mapRef.current = null;
       setIsMapReady(false);
     };
    }, []);
- 
-   // Update recenter button visibility when relevant state changes
-   useEffect(() => {
-     checkIfCenteredOnVehicle();
-   }, [checkIfCenteredOnVehicle, userHasInteracted, vehicles]);
 
 
   // Ref to track if initial centering has been done
@@ -415,39 +366,33 @@ export function VehicleMap({
     };
   }, []);
 
-  // Handle selected vehicle change
+  // Selected vehicle changes: do NOT move the camera automatically.
+  // Only open the popup and reset follow state.
   useEffect(() => {
+    setShouldFollowVehicle(false);
+
     if (!mapRef.current || !selectedVehicleId || !isMapReady) return;
- 
-     // Check if this is a NEW vehicle selection (user clicked on sidebar)
-     const isNewSelection = lastVehicleSelectionRef.current !== selectedVehicleId;
-     lastVehicleSelectionRef.current = selectedVehicleId;
+
+    const marker = markersRef.current.get(selectedVehicleId);
+    if (marker) {
+      marker.openPopup();
+    }
+  }, [selectedVehicleId, isMapReady]);
+
+  // Vehicle follow controller: ONLY move the camera when shouldFollowVehicle === true
+  useEffect(() => {
+    if (!mapRef.current || !isMapReady) return;
+    if (!selectedVehicleId || !shouldFollowVehicle) return;
 
     const selectedVehicle = vehicles.find(v => v.device_id === selectedVehicleId);
-    if (selectedVehicle) {
-       // Only auto-center if:
-       // 1. This is a new selection (user clicked on different vehicle)
-       // 2. User has NOT interacted with the map
-       if (isNewSelection || !userHasInteracted) {
-         // Reset interaction state on new selection
-         if (isNewSelection) {
-           setUserHasInteracted(false);
-           setShowRecenterButton(false);
-         }
-         
-         mapRef.current.flyTo(
-           [selectedVehicle.latitude, selectedVehicle.longitude],
-           16,
-           { duration: 1 }
-         );
-       }
+    if (!selectedVehicle) return;
 
-      const marker = markersRef.current.get(selectedVehicleId);
-      if (marker) {
-        marker.openPopup();
-      }
-    }
-   }, [selectedVehicleId, vehicles, isMapReady, userHasInteracted]);
+    mapRef.current.flyTo(
+      [selectedVehicle.latitude, selectedVehicle.longitude],
+      16,
+      { duration: 0.8 }
+    );
+  }, [selectedVehicleId, vehicles, shouldFollowVehicle, isMapReady]);
 
   // Handle trail polyline
   useEffect(() => {
@@ -514,10 +459,10 @@ export function VehicleMap({
 
   // Handle geofences display
   useEffect(() => {
-    if (!mapRef.current || !isMapReady) return;
+     if (!mapRef.current || !isMapReady) return;
 
-    const map = mapRef.current;
-    const existingLayers = geofenceLayersRef.current;
+     const map = mapRef.current;
+     const existingLayers = geofenceLayersRef.current;
     const currentIds = new Set(geofences.map(g => g.id));
 
     // Remove old geofences
@@ -530,7 +475,7 @@ export function VehicleMap({
 
     // Add or update geofences
     geofences.forEach((geofence) => {
-      const existingLayer = existingLayers.get(geofence.id);
+       const existingLayer = existingLayers.get(geofence.id);
       
       if (existingLayer) {
         existingLayer.remove();
@@ -578,7 +523,7 @@ export function VehicleMap({
           </div>
         `);
 
-        existingLayers.set(geofence.id, layer as L.Polygon);
+        existingLayers.set(geofence.id, layer);
 
         // Fly to selected geofence
         if (selectedGeofenceId === geofence.id) {
@@ -794,19 +739,20 @@ export function VehicleMap({
       </div>
  
      {/* Recenter Button - Only shows when following a vehicle but map was moved */}
-     {selectedVehicleId && showRecenterButton && (
-       <div className="absolute bottom-6 right-4 z-[1000] animate-in fade-in slide-in-from-bottom-2 duration-300">
-         <Button
-           variant="default"
-           size="sm"
-           onClick={handleRecenter}
-           className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg shadow-accent/30"
-         >
-           <Crosshair className="w-4 h-4" />
-           <span className="text-xs font-medium">Re-centralizar</span>
-         </Button>
-       </div>
-     )}
+      {selectedVehicleId && !shouldFollowVehicle && (
+        <div className="absolute bottom-6 right-4 z-[1000] animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setShouldFollowVehicle(true)}
+            className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg shadow-accent/30"
+            title="Seguir veículo (centraliza e acompanha atualizações)"
+          >
+            <Crosshair className="w-4 h-4" />
+            <span className="text-xs font-medium">Seguir veículo</span>
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
