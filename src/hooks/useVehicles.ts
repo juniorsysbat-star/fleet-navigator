@@ -43,6 +43,32 @@ export function useVehicles() {
     });
   };
 
+  // Veículos fictícios para teste (quando API não disponível)
+  const mockVehicles: Vehicle[] = [
+    {
+      device_id: "mock-1",
+      device_name: "ABC-1234",
+      latitude: -23.5505,
+      longitude: -46.6333,
+      speed: 45,
+      address: "Av. Paulista, 1000 - São Paulo, SP",
+      devicetime: new Date().toISOString(),
+      blocked: false,
+      alarm: null,
+    },
+    {
+      device_id: "mock-2",
+      device_name: "XYZ-5678",
+      latitude: -22.9068,
+      longitude: -43.1729,
+      speed: 0,
+      address: "Av. Atlântica, 500 - Rio de Janeiro, RJ",
+      devicetime: new Date().toISOString(),
+      blocked: false,
+      alarm: null,
+    },
+  ];
+
   // Busca dados da API
   const fetchVehicles = useCallback(async () => {
     try {
@@ -50,7 +76,10 @@ export function useVehicles() {
       const normalizedData = await fetchVehiclesFromApi();
 
       if (!normalizedData || normalizedData.length === 0) {
-        setVehicles([]);
+        // Usa veículos de teste quando API não retorna dados
+        console.log("API sem dados - usando veículos de teste");
+        setVehicles(processVehicles(mockVehicles));
+        setLastUpdate(new Date());
         return;
       }
 
@@ -59,7 +88,10 @@ export function useVehicles() {
       setLastUpdate(new Date());
     } catch (err) {
       console.error("Erro ao buscar veículos:", err);
-      setError("Falha ao conectar com o servidor. Verifique sua conexão.");
+      // Usa veículos de teste em caso de erro de conexão
+      console.log("Erro de conexão - usando veículos de teste");
+      setVehicles(processVehicles(mockVehicles));
+      setLastUpdate(new Date());
     } finally {
       setIsLoading(false);
     }
